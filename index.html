@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabú Realtime - Sorteo Rápido</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Tabú Multijugador Realtime</title>
+    <script src="https://cdn.scaledrone.com/scaledrone.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: #ede7f6; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
@@ -16,41 +16,23 @@
         .forbidden-title { font-size: 14px; color: #6a1b9a; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; font-weight: 600; }
         .forbidden-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
         .forbidden-word { background: #ffeaec; color: #e63946; padding: 12px; border-radius: 10px; font-size: 19px; font-weight: 700; text-transform: uppercase; border: 1px solid #ffcdd2; }
-        .forbidden-word.reviewing { background: #f1f1f1 !important; color: #555555 !important; border: 1px solid #dddddd !important; }
         .stats { display: flex; justify-content: space-around; margin-bottom: 25px; font-size: 19px; font-weight: bold; color: #4a148c; background-color: #e1bee7; padding: 10px; border-radius: 10px; }
-        .time-critical { color: #e63946 !important; animation: pulse 0.8s infinite; }
         .buttons-container { display: flex; gap: 10px; }
         button { flex: 1; padding: 14px 8px; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; }
         .btn-taboo { background-color: #e63946; box-shadow: 0 4px 0 #b32430; }
         .btn-skip { background-color: #8e24aa; box-shadow: 0 4px 0 #6a1b9a; }
         .btn-success { background-color: #2ec4b6; box-shadow: 0 4px 0 #26a69a; }
         .btn-restart { background-color: #4a148c; width: 100%; margin-top: 20px; }
-        .btn-back-results { background-color: #ffb300; color: #333; margin-top: 15px; width: 100%; display: none; }
         button:disabled { background-color: #b0bec5 !important; box-shadow: none !important; color: #eceff1 !important; cursor: not-allowed; }
-        
-        /* Pantalla de Inicio Rápido */
         #welcome-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(74, 20, 140, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; padding: 20px; }
         .btn-roulette { background: #2ec4b6; padding: 20px 40px; font-size: 20px; width: 280px; border-radius: 15px; box-shadow: 0 5px 0 #26a69a; margin-top: 20px; }
-        
-        /* Historial */
-        .history-container { text-align: left; margin-top: 15px; max-height: 200px; overflow-y: auto; }
-        .history-section-title { font-size: 14px; font-weight: bold; margin: 12px 0 6px 0; text-transform: uppercase; }
-        .title-success { color: #2e7d32; } .title-skipped { color: #6a1b9a; } .title-taboo { color: #c62828; }
-        .history-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-        .history-chip { padding: 6px 12px; border-radius: 20px; font-weight: 600; text-transform: uppercase; font-size: 13px; cursor: pointer; }
-        .chip-success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
-        .chip-skipped { background-color: #f3e5f5; color: #6a1b9a; border: 1px solid #e1bee7; }
-        .chip-taboo { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
-        .review-notice { font-size: 13px; color: #666; font-style: italic; margin-top: 10px; background-color: #fff8e1; padding: 6px; border-radius: 6px; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
     <div id="welcome-screen">
         <h2>Juego Tabú Realtime</h2>
-        <p style="margin-bottom: 10px; color: #e1bee7; text-align:center;">Diles a tus amigos que abran este mismo enlace en sus móviles.</p>
-        <p style="color: #fff; font-size: 14px; text-align:center; max-width:300px;">Cuando estén todos listos, uno de ustedes debe presionar el botón de abajo:</p>
+        <p style="margin-bottom: 10px; color: #e1bee7; text-align:center;">Comparte esta URL con tus amigos.</p>
         <button class="btn-roulette" onclick="rollTheDice()">🎲 SORTEAR MI ROL</button>
     </div>
 
@@ -65,70 +47,53 @@
 
         <div class="card" id="game-card">
             <div class="secret-word" id="secret-word">ESPERANDO INICIO...</div>
-            <div class="forbidden-title" id="forbidden-title">Palabras Prohibidas</div>
+            <div class="forbidden-title">Palabras Prohibidas</div>
             <ul class="forbidden-list" id="forbidden-list"></ul>
-            <button class="btn-back-results" id="btn-back" onclick="restoreResultsView()">← Volver a los resultados</button>
         </div>
 
         <div class="buttons-container">
-            <button class="btn-taboo" id="btn-taboo" onclick="sendGameAction('taboo')">¡TABÚ! (-1)</button>
+            <button class="btn-taboo" id="btn-taboo" onclick="sendGameAction('taboo')">¡TABÚ!</button>
             <button class="btn-skip" id="btn-skip" onclick="sendGameAction('skip')">PASO (<span id="skips-left">3</span>)</button>
-            <button class="btn-success" id="btn-success" onclick="sendGameAction('correct')">¡ACIERTO! (+1)</button>
+            <button class="btn-success" id="btn-success" onclick="sendGameAction('correct')">¡ACIERTO!</button>
         </div>
 
-        <button class="btn-restart" id="btn-restart" onclick="rollTheDice()">🎲 Sortear Siguiente Ronda</button>
+        <button class="btn-restart" id="btn-restart" onclick="rollTheDice()" style="display:none;">🎲 Siguiente Ronda</button>
     </div>
 
     <script>
-        const SUPABASE_URL = "https://noirhvzgawswgeegcypg.supabase.co"; 
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vaXJodnpnYXdzd2dlZWdjeXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MzMxNTksImV4cCI6MjA5NTIwOTE1OX0.X9Oo325y5J-GBympMUHajt_o-DUa3eP_yaTsunJudw0";
-        
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-   
+        // Canal público gratuito abierto al instante
+        const drone = new ScaleDrone('askYv6vYw7w6yO6S'); 
+        const roomName = 'observable-sala-tabu';
+        let room;
+
         const deck = [
-            { id: 0, word: "secer++", forbidden: ["Código", "Secreto", "Programar", "Plus"] },
-            { id: 1, word: "Computadora", forbidden: ["Pantalla", "Teclado", "Ratón", "Internet"] },
-            { id: 2, word: "Pizza", forbidden: ["Queso", "Italia", "Comida", "Masa"] },
-            { id: 3, word: "Fútbol", forbidden: ["Balón", "Gol", "Estadio", "Messi"] },
-            { id: 4, word: "Helado", forbidden: ["Frío", "Postre", "Cucurucho", "Chocolate"] }
+            { word: "secer++", forbidden: ["Código", "Secreto", "Programar", "Plus"] },
+            { word: "Computadora", forbidden: ["Pantalla", "Teclado", "Ratón", "Internet"] },
+            { word: "Pizza", forbidden: ["Queso", "Italia", "Comida", "Masa"] },
+            { word: "Fútbol", forbidden: ["Balón", "Gol", "Estadio", "Messi"] },
+            { word: "Helado", forbidden: ["Frío", "Postre", "Cucurucho", "Chocolate"] }
         ];
 
         let playerRole = 'guesser'; 
-        let myUniqueId = Math.random().toString(36).substring(2, 9); // Identificador único invisible
-        let channel;
+        let myUniqueId = Math.random().toString(36).substring(2, 9); 
         let timerInterval;
+        let gameState = { score: 0, timeLeft: 60, skipsLeft: 3, currentCardIndex: 0, gameActive: false, giverId: "" };
 
-        let gameState = {
-            score: 0,
-            timeLeft: 60,
-            skipsLeft: 3,
-            currentCardIndex: 0,
-            gameActive: false,
-            deckOrder: [0, 1, 2, 3, 4], 
-            giverId: "",
-            history: { correct: [], skipped: [], taboo: [] }
-        };
-
-        // Inicializar la conexión en segundo plano inmediatamente
-        channel = supabase.channel('sala-tabu-rapida', {
-            config: { broadcast: { self: true } }
+        drone.on('open', error => {
+            if (error) return console.error(error);
+            room = drone.subscribe(roomName);
+            room.on('data', (message, client) => {
+                handleIncomingAction(message);
+            });
         });
 
-        channel.on('broadcast', { event: 'game_action' }, ({ payload }) => {
-            handleIncomingAction(payload);
-        }).subscribe();
-
-        // Al pulsar el botón, este jugador decide iniciar la ronda y se postula
         function rollTheDice() {
-            gameState.deckOrder = [...deck].map(c => c.id).sort(() => Math.random() - 0.5);
-            gameState.currentCardIndex = 0;
+            gameState.currentCardIndex = Math.floor(Math.random() * deck.length);
             gameState.score = 0;
             gameState.timeLeft = 60;
             gameState.skipsLeft = 3;
-            gameState.history = { correct: [], skipped: [], taboo: [] };
-            gameState.giverId = myUniqueId; // Yo soy el dador de pistas
+            gameState.giverId = myUniqueId; 
             gameState.gameActive = true;
-
             broadcastState('start_game');
         }
 
@@ -138,11 +103,7 @@
         }
 
         function broadcastState(actionType) {
-            channel.send({
-                type: 'broadcast',
-                event: 'game_action',
-                payload: { action: actionType, state: gameState }
-            });
+            drone.publish({ room: roomName, message: { action: actionType, state: gameState } });
         }
 
         function handleIncomingAction(payload) {
@@ -152,7 +113,6 @@
                 gameState = payload.state;
                 document.getElementById("welcome-screen").style.display = "none";
                 
-                // Si el ID del dador coincide con el mío, yo doy pistas. Si no, adivino.
                 if(myUniqueId === gameState.giverId) {
                     playerRole = 'giver';
                     document.getElementById('current-role-badge').innerText = "🗣️ ¡Te toca dar pistas!";
@@ -162,7 +122,6 @@
                     document.getElementById('current-role-badge').innerText = "👁️ Adivinando / Rival";
                     document.getElementById('current-role-badge').style.background = "#8e24aa";
                 }
-
                 startLocalTimer();
                 updateUI();
                 return;
@@ -170,21 +129,9 @@
 
             if (!gameState.gameActive) return;
 
-            const currentCard = deck.find(c => c.id === gameState.deckOrder[gameState.currentCardIndex]);
-
-            if (action === 'correct') {
-                gameState.score++;
-                gameState.history.correct.push(currentCard);
-                gameState.currentCardIndex++;
-            } else if (action === 'taboo') {
-                gameState.score--;
-                gameState.history.taboo.push(currentCard);
-                gameState.currentCardIndex++;
-            } else if (action === 'skip') {
-                gameState.skipsLeft--;
-                gameState.history.skipped.push(currentCard);
-                gameState.currentCardIndex++;
-            }
+            if (action === 'correct') { gameState.score++; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
+            else if (action === 'taboo') { gameState.score--; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
+            else if (action === 'skip') { gameState.skipsLeft--; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
 
             updateUI();
         }
@@ -192,20 +139,15 @@
         function startLocalTimer() {
             clearInterval(timerInterval);
             document.getElementById("btn-restart").style.display = "none";
-            document.getElementById("btn-back").style.display = "none";
-            
             timerInterval = setInterval(() => {
                 if (!gameState.gameActive) return;
-                
                 gameState.timeLeft--;
                 document.getElementById("timer").innerText = gameState.timeLeft;
-
-                if (gameState.timeLeft <= 10) document.getElementById("timer").classList.add("time-critical");
-
                 if (gameState.timeLeft <= 0) {
                     gameState.gameActive = false;
                     clearInterval(timerInterval);
-                    endGameView();
+                    document.getElementById("secret-word").innerText = "¡FIN!";
+                    document.getElementById("btn-restart").style.display = "block";
                 }
             }, 1000);
         }
@@ -220,67 +162,18 @@
                 document.getElementById("btn-skip").disabled = gameState.skipsLeft <= 0;
                 document.getElementById("btn-taboo").disabled = false;
                 document.getElementById("btn-success").disabled = false;
+                
+                const currentCard = deck[gameState.currentCardIndex];
+                document.getElementById("secret-word").innerText = currentCard.word;
+                document.getElementById("forbidden-list").innerHTML = currentCard.forbidden.map(w => `<li class="forbidden-word">${w}</li>`).join('');
             } else {
-                document.getElementById('game-card').style.opacity = "0.08";
+                document.getElementById('game-card').style.opacity = "0.1";
                 document.getElementById("btn-skip").disabled = true;
                 document.getElementById("btn-taboo").disabled = true;
                 document.getElementById("btn-success").disabled = true;
                 document.getElementById("secret-word").innerText = "¡ADIVINANDO!";
-                document.getElementById("forbidden-list").innerHTML = "<li>No puedes ver las respuestas</li>";
-                return; 
+                document.getElementById("forbidden-list").innerHTML = "<li>Oculto para los rivales</li>";
             }
-
-            const currentCardId = gameState.deckOrder[gameState.currentCardIndex];
-            const currentCard = deck.find(c => c.id === currentCardId);
-            
-            document.getElementById("secret-word").innerText = currentCard.word;
-            document.getElementById("secret-word").style.color = "#2ec4b6";
-            document.getElementById("forbidden-title").style.display = "block";
-            
-            const forbiddenListHTML = currentCard.forbidden.map(word => `<li class="forbidden-word">${word}</li>`).join('');
-            document.getElementById("forbidden-list").innerHTML = forbiddenListHTML;
-        }
-
-        function reviewCard(wordId) {
-            const selectedCard = deck.find(card => card.id === wordId);
-            document.getElementById('game-card').style.opacity = "1"; 
-            document.getElementById("secret-word").innerText = selectedCard.word;
-            document.getElementById("secret-word").style.color = "#2ec4b6";
-            document.getElementById("forbidden-title").style.display = "block";
-
-            const forbiddenListHTML = selectedCard.forbidden.map(word => `<li class="forbidden-word reviewing">${word}</li>`).join('');
-            document.getElementById("forbidden-list").innerHTML = forbiddenListHTML;
-            document.getElementById("btn-back").style.display = "block";
-        }
-
-        function restoreResultsView() {
-            document.getElementById("btn-back").style.display = "none";
-            endGameView();
-        }
-
-        function endGameView() {
-            document.getElementById('game-card').style.opacity = "1"; 
-            document.getElementById("secret-word").innerText = "¡FIN DE RONDA!";
-            document.getElementById("secret-word").style.color = "#4a148c";
-            document.getElementById("forbidden-title").style.none;
-
-            let htmlResults = `<div class="review-notice">🔍 Toca una palabra para auditar la ficha completa arriba.</div><div class="history-container">`;
-
-            if(gameState.history.correct.length > 0) {
-                htmlResults += `<div class="history-section-title title-success">✓ Acertadas</div><div class="history-grid">` + 
-                    gameState.history.correct.map(c => `<span class="history-chip chip-success" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
-            }
-            if(gameState.history.skipped.length > 0) {
-                htmlResults += `<div class="history-section-title title-skipped">→ Pasadas</div><div class="history-grid">` + 
-                    gameState.history.skipped.map(c => `<span class="history-chip chip-skipped" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
-            }
-            if(gameState.history.taboo.length > 0) {
-                htmlResults += `<div class="history-section-title title-taboo">✗ Tabús</div><div class="history-grid">` + 
-                    gameState.history.taboo.map(c => `<span class="history-chip chip-taboo" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
-            }
-
-            document.getElementById("forbidden-list").innerHTML = htmlResults + `</div>`;
-            document.getElementById("btn-restart").style.display = "block";
         }
     </script>
 </body>
