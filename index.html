@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabú Realtime - Roles Aleatorios</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: #ede7f6; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        
+        .game-container { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(74, 20, 140, 0.15); padding: 30px; width: 100%; max-width: 500px; text-align: center; border: 1px solid #d1c4e9; }
+        h1 { color: #4a148c; margin-bottom: 5px; font-size: 26px; font-weight: 800; }
+        
+        .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; background: #e1bee7; color: #4a148c; }
+        
+        /* Tarjeta de Juego */
+        .card { border: 2px solid #d1c4e9; border-radius: 15px; padding: 25px; margin-bottom: 25px; background: #f3e5f5; transition: opacity 0.3s; }
+        .secret-word { color: #2ec4b6; font-size: 36px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1.5px; }
+        .forbidden-title { font-size: 14px; color: #6a1b9a; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; font-weight: 600; }
+        .forbidden-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .forbidden-word { background: #ffeaec; color: #e63946; padding: 12px; border-radius: 10px; font-size: 19px; font-weight: 700; text-transform: uppercase; border: 1px solid #ffcdd2; }
+        .forbidden-word.reviewing { background: #f1f1f1 !important; color: #555555 !important; border: 1px solid #dddddd !important; }
+        
+        /* Marcadores */
+        .stats { display: flex; justify-content: space-around; margin-bottom: 25px; font-size: 19px; font-weight: bold; color: #4a148c; background-color: #e1bee7; padding: 10px; border-radius: 10px; }
+        .time-critical { color: #e63946 !important; animation: pulse 0.8s infinite; }
+        
+        /* Botones */
+        .buttons-container { display: flex; gap: 10px; }
+        button { flex: 1; padding: 14px 8px; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; transition: background 0.2s; }
+        .btn-taboo { background-color: #e63946; box-shadow: 0 4px 0 #b32430; }
+        .btn-skip { background-color: #8e24aa; box-shadow: 0 4px 0 #6a1b9a; }
+        .btn-success { background-color: #2ec4b6; box-shadow: 0 4px 0 #26a69a; }
+        .btn-restart { background-color: #4a148c; width: 100%; margin-top: 20px; box-shadow: 0 4px 0 #210342; }
+        .btn-back-results { background-color: #ffb300; color: #333; margin-top: 15px; width: 100%; display: none; }
+        button:disabled { background-color: #b0bec5 !important; box-shadow: none !important; color: #eceff1 !important; cursor: not-allowed; }
+        
+        /* Pantalla de Lobby (Sala de espera) */
+        #lobby-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(74, 20, 140, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; padding: 20px; }
+        .lobby-input { padding: 12px; border-radius: 10px; border: none; font-size: 16px; width: 100%; max-width: 300px; margin-bottom: 15px; text-align: center; }
+        .players-list { margin: 20px 0; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; width: 100%; max-width: 300px; list-style: none; max-height: 150px; overflow-y: auto; }
+        .players-list li { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: 600; }
+        .btn-lobby { background: #2ec4b6; padding: 15px 30px; font-size: 18px; width: 100%; max-width: 300px; border-radius: 12px; box-shadow: 0 5px 0 #26a69a; }
+        
+        /* Historial Final */
+        .history-container { text-align: left; margin-top: 15px; max-height: 200px; overflow-y: auto; }
+        .history-section-title { font-size: 14px; font-weight: bold; margin: 12px 0 6px 0; text-transform: uppercase; }
+        .title-success { color: #2e7d32; } .title-skipped { color: #6a1b9a; } .title-taboo { color: #c62828; }
+        .history-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .history-chip { padding: 6px 12px; border-radius: 20px; font-weight: 600; text-transform: uppercase; font-size: 13px; cursor: pointer; }
+        .chip-success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .chip-skipped { background-color: #f3e5f5; color: #6a1b9a; border: 1px solid #e1bee7; }
+        .chip-taboo { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .review-notice { font-size: 13px; color: #666; font-style: italic; margin-top: 10px; background-color: #fff8e1; padding: 6px; border-radius: 6px; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <div id="lobby-screen">
+        <h2>Festa Tabú Multijugador</h2>
+        <p style="margin-bottom: 20px; color: #e1bee7;">Conéctate con tus amigos en tiempo real</p>
+        
+        <div id="lobby-join-view">
+            <input type="text" id="username-input" class="lobby-input" placeholder="Escribe tu nombre aquí..." maxlength="15">
+            <button class="btn-lobby" onclick="joinLobby()">ENTRAR A LA SALA</button>
+        </div>
+
+        <div id="lobby-wait-view" style="display: none; width: 100%; max-width: 300px; text-align: center;">
+            <p style="font-weight: bold; color: #2ec4b6;">Jugadores en la sala:</p>
+            <ul id="players-ul" class="players-list"></ul>
+            <button class="btn-lobby" id="btn-start-roulette" onclick="triggerRoleRoulette()">🎲 SORTEAR ROLES E INICIAR</button>
+            <p id="wait-msg" style="font-size: 12px; color: #ccc; margin-top: 10px;">Esperando que el creador inicie la ronda...</p>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <h1>¡Tabú Multijugador!</h1>
+        <div class="role-badge" id="current-role-badge">Conectando...</div>
+        
+        <div class="stats">
+            <div>Tiempo: <span id="timer">60</span>s</div>
+            <div>Puntos: <span id="score">0</span></div>
+        </div>
+
+        <div class="card" id="game-card">
+            <div class="secret-word" id="secret-word">ESPERANDO SORTEO...</div>
+            <div class="forbidden-title" id="forbidden-title">Palabras Prohibidas</div>
+            <ul class="forbidden-list" id="forbidden-list"></ul>
+            <button class="btn-back-results" id="btn-back" onclick="restoreResultsView()">← Volver a los resultados</button>
+        </div>
+
+        <div class="buttons-container">
+            <button class="btn-taboo" id="btn-taboo" onclick="sendGameAction('taboo')" disabled>¡TABÚ! (-1)</button>
+            <button class="btn-skip" id="btn-skip" onclick="sendGameAction('skip')" disabled>PASO (<span id="skips-left">3</span>)</button>
+            <button class="btn-success" id="btn-success" onclick="sendGameAction('correct')" disabled>¡ACIERTO! (+1)</button>
+        </div>
+
+        <button class="btn-restart" id="btn-restart" onclick="triggerRoleRoulette()" style="display: none;">🎲 Sorteo Siguiente Ronda</button>
+    </div>
+
+    <script>
+        // TU CONFIGURACIÓN DE SUPABASE REAL
+        const SUPABASE_URL = "https://noirhvzgawswgeegcypg.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vaXJodnpnYXdzd2dlZWdjeXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MzMxNTksImV4cCI6MjA5NTIwOTE1OX0.X9Oo325y5J-GBympMUHajt_o-DUa3eP_yaTsunJudw0";
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+   
+        const deck = [
+            { id: 0, word: "secer++", forbidden: ["Código", "Secreto", "Programar", "Plus"] },
+            { id: 1, word: "Computadora", forbidden: ["Pantalla", "Teclado", "Ratón", "Internet"] },
+            { id: 2, word: "Pizza", forbidden: ["Queso", "Italia", "Comida", "Masa"] },
+            { id: 3, word: "Fútbol", forbidden: ["Balón", "Gol", "Estadio", "Messi"] },
+            { id: 4, word: "Helado", forbidden: ["Frío", "Postre", "Cucurucho", "Chocolate"] }
+        ];
+
+        let myName = "";
+        let playerRole = 'guesser'; // Todos empiezan como espectadores/adivinadores
+        let channel;
+        let timerInterval;
+        let onlinePlayers = {};
+
+        let gameState = {
+            score: 0,
+            timeLeft: 60,
+            skipsLeft: 3,
+            currentCardIndex: 0,
+            gameActive: false,
+            deckOrder: [0, 1, 2, 3, 4], 
+            giverName: "",
+            history: { correct: [], skipped: [], taboo: [] }
+        };
+
+        // 1. Unirse al Lobby usando la función de Presencia (Presence) de Supabase
+        function joinLobby() {
+            const input = document.getElementById("username-input").value.trim();
+            if(!input) return alert("Por favor, introduce tu nombre.");
+            myName = input;
+
+            document.getElementById("lobby-join-view").style.display = "none";
+            document.getElementById("lobby-wait-view").style.display = "block";
+
+            // Creamos un canal de Supabase global
+            channel = supabase.channel('sala-tabu-global', {
+                config: { broadcast: { self: true }, presence: { key: myName } }
+            });
+
+            // Escuchar quién entra y quién sale de la sala en tiempo real
+            channel.on('presence', { event: 'sync' }, () => {
+                onlinePlayers = channel.presenceState();
+                updatePlayersLobbyList();
+            });
+
+            // Escuchar eventos del juego (acciones de botones y sorteos)
+            channel.on('broadcast', { event: 'game_action' }, ({ payload }) => {
+                handleIncomingAction(payload);
+            });
+
+            channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    // Informamos a la red que estamos aquí metidos
+                    await channel.track({ online_at: new Date().toISOString() });
+                }
+            });
+        }
+
+        // Actualizar la lista visual de amigos conectados en la pantalla de espera
+        function updatePlayersLobbyList() {
+            const ul = document.getElementById("players-ul");
+            ul.innerHTML = "";
+            const playerNames = Object.keys(onlinePlayers);
+            
+            playerNames.forEach(name => {
+                const li = document.createElement("li");
+                li.innerText = `👤 ${name}`;
+                ul.appendChild(li);
+            });
+
+            // El primer jugador de la lista se considera el "Líder/Creador" (el único que puede dar al botón de sortear)
+            if(playerNames[0] === myName) {
+                document.getElementById("btn-start-roulette").style.display = "block";
+                document.getElementById("wait-msg").style.display = "none";
+            } else {
+                document.getElementById("btn-start-roulette").style.display = "none";
+                document.getElementById("wait-msg").style.display = "block";
+                document.getElementById("wait-msg").innerText = `Esperando que ${playerNames[0]} sortee los roles...`;
+            }
+        }
+
+        // 2. Ejecutar el sorteo aleatorio (Solo lo ejecuta el líder de la sala)
+        function triggerRoleRoulette() {
+            const playerNames = Object.keys(onlinePlayers);
+            if(playerNames.length < 1) return; // Medida de seguridad
+
+            // Elegimos un nombre al azar de la lista de conectados
+            const luckyGiver = playerNames[Math.floor(Math.random() * playerNames.length)];
+
+            gameState.deckOrder = [...deck].map(c => c.id).sort(() => Math.random() - 0.5);
+            gameState.currentCardIndex = 0;
+            gameState.score = 0;
+            gameState.timeLeft = 60;
+            gameState.skipsLeft = 3;
+            gameState.history = { correct: [], skipped: [], taboo: [] };
+            gameState.giverName = luckyGiver;
+            gameState.gameActive = true;
+
+            // Transmitimos a todos el inicio con el nuevo rol asignado
+            broadcastState('start_game');
+        }
+
+        function sendGameAction(type) {
+            if (!gameState.gameActive || myName !== gameState.giverName) return;
+            broadcastState(type);
+        }
+
+        function broadcastState(actionType) {
+            channel.send({
+                type: 'broadcast',
+                event: 'game_action',
+                payload: { action: actionType, state: gameState }
+            });
+        }
+
+        // 3. Procesar qué pasa en pantalla cuando llega un mensaje de la red
+        function handleIncomingAction(payload) {
+            const action = payload.action;
+            
+            if (action === 'start_game') {
+                gameState = payload.state;
+                
+                // Ocultar pantalla de espera si estaba activa
+                document.getElementById("lobby-screen").style.display = "none";
+                
+                // Asignar rol localmente comparando tu nombre con el elegido por el sorteo
+                if(myName === gameState.giverName) {
+                    playerRole = 'giver';
+                    document.getElementById('current-role-badge').innerText = `🗣️ Das Pistas (${myName})`;
+                    document.getElementById('current-role-badge').style.background = "#2ec4b6";
+                    document.getElementById('current-role-badge').style.color = "#white";
+                } else {
+                    playerRole = 'guesser';
+                    document.getElementById('current-role-badge').innerText = `👁️ Adivinas (Pistas de: ${gameState.giverName})`;
+                    document.getElementById('current-role-badge').style.background = "#8e24aa";
+                    document.getElementById('current-role-badge').style.color = "white";
+                }
+
+                startLocalTimer();
+                updateUI();
+                return;
+            }
+
+            if (!gameState.gameActive) return;
+
+            const currentCard = deck.find(c => c.id === gameState.deckOrder[gameState.currentCardIndex]);
+
+            if (action === 'correct') {
+                gameState.score++;
+                gameState.history.correct.push(currentCard);
+                gameState.currentCardIndex++;
+            } else if (action === 'taboo') {
+                gameState.score--;
+                gameState.history.taboo.push(currentCard);
+                gameState.currentCardIndex++;
+            } else if (action === 'skip') {
+                gameState.skipsLeft--;
+                gameState.history.skipped.push(currentCard);
+                gameState.currentCardIndex++;
+            }
+
+            updateUI();
+        }
+
+        function startLocalTimer() {
+            clearInterval(timerInterval);
+            document.getElementById("btn-restart").style.display = "none";
+            document.getElementById("btn-back").style.display = "none";
+            
+            timerInterval = setInterval(() => {
+                if (!gameState.gameActive) return;
+                
+                gameState.timeLeft--;
+                document.getElementById("timer").innerText = gameState.timeLeft;
+
+                if (gameState.timeLeft <= 10) document.getElementById("timer").classList.add("time-critical");
+
+                if (gameState.timeLeft <= 0) {
+                    gameState.gameActive = false;
+                    clearInterval(timerInterval);
+                    endGameView();
+                }
+            }, 1000);
+        }
+
+        function updateUI() {
+            document.getElementById("score").innerText = gameState.score;
+            document.getElementById("timer").innerText = gameState.timeLeft;
+            document.getElementById("skips-left").innerText = gameState.skipsLeft;
+
+            // Controles de botones físicos
+            if (playerRole === 'giver') {
+                document.getElementById('game-card').style.opacity = "1";
+                document.getElementById("btn-skip").disabled = gameState.skipsLeft <= 0;
+                document.getElementById("btn-taboo").disabled = false;
+                document.getElementById("btn-success").disabled = false;
+            } else {
+                // Si eres adivinador se bloquean los controles y se difumina la tarjeta
+                document.getElementById('game-card').style.opacity = "0.08";
+                document.getElementById("btn-skip").disabled = true;
+                document.getElementById("btn-taboo").disabled = true;
+                document.getElementById("btn-success").disabled = true;
+                document.getElementById("secret-word").innerText = "¡ADIVINANDO!";
+                document.getElementById("forbidden-list").innerHTML = "<li>No puedes ver las respuestas</li>";
+                return; 
+            }
+
+            // Pintar tarjeta solo para el dador de pistas
+            const currentCardId = gameState.deckOrder[gameState.currentCardIndex];
+            const currentCard = deck.find(c => c.id === currentCardId);
+            
+            document.getElementById("secret-word").innerText = currentCard.word;
+            document.getElementById("secret-word").style.color = "#2ec4b6";
+            document.getElementById("forbidden-title").style.display = "block";
+            
+            const forbiddenListHTML = currentCard.forbidden.map(word => `<li class="forbidden-word">${word}</li>`).join('');
+            document.getElementById("forbidden-list").innerHTML = forbiddenListHTML;
+        }
+
+        function reviewCard(wordId) {
+            const selectedCard = deck.find(card => card.id === wordId);
+            document.getElementById('game-card').style.opacity = "1"; 
+            document.getElementById("secret-word").innerText = selectedCard.word;
+            document.getElementById("secret-word").style.color = "#2ec4b6";
+            document.getElementById("forbidden-title").style.display = "block";
+
+            const forbiddenListHTML = selectedCard.forbidden.map(word => `<li class="forbidden-word reviewing">${word}</li>`).join('');
+            document.getElementById("forbidden-list").innerHTML = forbiddenListHTML;
+            document.getElementById("btn-back").style.display = "block";
+        }
+
+        function restoreResultsView() {
+            document.getElementById("btn-back").style.display = "none";
+            endGameView();
+        }
+
+        function endGameView() {
+            // El juego termina: quitamos difuminado para que todos auditen
+            document.getElementById('game-card').style.opacity = "1"; 
+            document.getElementById("secret-word").innerText = "¡FIN DE RONDA!";
+            document.getElementById("secret-word").style.color = "#4a148c";
+            document.getElementById("forbidden-title").style.display = "none";
+
+            let htmlResults = `<div class="review-notice">🔍 Toca cualquier palabra para auditar la tarjeta completa arriba.</div><div class="history-container">`;
+
+            if(gameState.history.correct.length > 0) {
+                htmlResults += `<div class="history-section-title title-success">✓ Acertadas</div><div class="history-grid">` + 
+                    gameState.history.correct.map(c => `<span class="history-chip chip-success" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
+            }
+            if(gameState.history.skipped.length > 0) {
+                htmlResults += `<div class="history-section-title title-skipped">→ Pasadas</div><div class="history-grid">` + 
+                    gameState.history.skipped.map(c => `<span class="history-chip chip-skipped" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
+            }
+            if(gameState.history.taboo.length > 0) {
+                htmlResults += `<div class="history-section-title title-taboo">✗ Tabús</div><div class="history-grid">` + 
+                    gameState.history.taboo.map(c => `<span class="history-chip chip-taboo" onclick="reviewCard(${c.id})">${c.word}</span>`).join('') + `</div>`;
+            }
+
+            document.getElementById("forbidden-list").innerHTML = htmlResults + `</div>`;
+            
+            // Solo dejamos que el que fue líder inicial o el propio dador sorteen la siguiente ronda
+            const playerNames = Object.keys(onlinePlayers);
+            if (playerNames[0] === myName) {
+                document.getElementById("btn-restart").style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
