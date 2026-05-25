@@ -3,178 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabú Multijugador Realtime</title>
-    <script src="https://cdn.scaledrone.com/scaledrone.min.js"></script>
+    <title>Tabú Interactivo - Tiempo Real</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: #ede7f6; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-        .game-container { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(74, 20, 140, 0.15); padding: 30px; width: 100%; max-width: 500px; text-align: center; border: 1px solid #d1c4e9; }
-        h1 { color: #4a148c; margin-bottom: 5px; font-size: 26px; font-weight: 800; }
-        .role-badge { display: inline-block; padding: 5px 15px; border-radius: 15px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; background: #e1bee7; color: #4a148c; }
-        .card { border: 2px solid #d1c4e9; border-radius: 15px; padding: 25px; margin-bottom: 25px; background: #f3e5f5; }
-        .secret-word { color: #2ec4b6; font-size: 36px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1.5px; }
-        .forbidden-title { font-size: 14px; color: #6a1b9a; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; font-weight: 600; }
-        .forbidden-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-        .forbidden-word { background: #ffeaec; color: #e63946; padding: 12px; border-radius: 10px; font-size: 19px; font-weight: 700; text-transform: uppercase; border: 1px solid #ffcdd2; }
-        .stats { display: flex; justify-content: space-around; margin-bottom: 25px; font-size: 19px; font-weight: bold; color: #4a148c; background-color: #e1bee7; padding: 10px; border-radius: 10px; }
-        .buttons-container { display: flex; gap: 10px; }
-        button { flex: 1; padding: 14px 8px; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; }
-        .btn-taboo { background-color: #e63946; box-shadow: 0 4px 0 #b32430; }
-        .btn-skip { background-color: #8e24aa; box-shadow: 0 4px 0 #6a1b9a; }
-        .btn-success { background-color: #2ec4b6; box-shadow: 0 4px 0 #26a69a; }
-        .btn-restart { background-color: #4a148c; width: 100%; margin-top: 20px; }
-        button:disabled { background-color: #b0bec5 !important; box-shadow: none !important; color: #eceff1 !important; cursor: not-allowed; }
-        #welcome-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(74, 20, 140, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; color: white; padding: 20px; }
-        .btn-roulette { background: #2ec4b6; padding: 20px 40px; font-size: 20px; width: 280px; border-radius: 15px; box-shadow: 0 5px 0 #26a69a; margin-top: 20px; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 font-sans selection:bg-indigo-500 selection:text-white">
 
-    <div id="welcome-screen">
-        <h2>Juego Tabú Realtime</h2>
-        <p style="margin-bottom: 10px; color: #e1bee7; text-align:center;">Comparte esta URL con tus amigos.</p>
-        <button class="btn-roulette" onclick="rollTheDice()">🎲 SORTEAR MI ROL</button>
-    </div>
+    <main class="w-full flex justify-center items-center">
 
-    <div class="game-container">
-        <h1>¡Tabú Multijugador!</h1>
-        <div class="role-badge" id="current-role-badge">Espectador</div>
-        
-        <div class="stats">
-            <div>Tiempo: <span id="timer">60</span>s</div>
-            <div>Puntos: <span id="score">0</span></div>
+        <div id="pantalla-inicio" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+            <div class="text-center space-y-2">
+                <span class="text-4xl">🤫</span>
+                <h1 class="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">TABÚ ONLINE</h1>
+                <p class="text-slate-400 text-sm">Adivina la palabra sin decir las prohibidas en tiempo real.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Tu Nombre:</label>
+                    <input type="text" id="input-nombre" placeholder="Ej. Alex" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 focus:outline-none focus:border-indigo-500 text-white placeholder-slate-600 font-medium transition">
+                </div>
+                <hr class="border-slate-700 my-2">
+                <button id="btn-crear-sala" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold p-3.5 rounded-xl transition shadow-lg tracking-wide">
+                    👑 Crear Nueva Sala
+                </button>
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-slate-700"></div>
+                    <span class="flex-shrink mx-4 text-slate-500 text-xs font-bold uppercase tracking-widest">O Únete</span>
+                    <div class="flex-grow border-t border-slate-700"></div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="input-codigo" maxlength="4" placeholder="CÓDIGO" class="w-2/5 bg-slate-900 border border-slate-700 rounded-xl p-3 text-center uppercase tracking-widest font-black focus:outline-none focus:border-violet-500 text-violet-400 placeholder-slate-600 transition">
+                    <button id="btn-unirse-sala" class="w-3/5 bg-slate-700 hover:bg-slate-600 active:scale-[0.98] text-white font-bold p-3 rounded-xl transition tracking-wide">
+                        Entrar a la Sala
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <div class="card" id="game-card">
-            <div class="secret-word" id="secret-word">ESPERANDO INICIO...</div>
-            <div class="forbidden-title">Palabras Prohibidas</div>
-            <ul class="forbidden-list" id="forbidden-list"></ul>
+        <div id="pantalla-espera" class="w-full max-w-xl bg-slate-800 p-6 rounded-2xl shadow-xl space-y-6 hidden">
+            <div class="text-center space-y-1">
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Código de la sala</p>
+                <h2 id="txt-codigo-sala" class="text-4xl font-black tracking-widest text-indigo-400 font-mono bg-slate-900/50 py-2 rounded-xl border border-slate-700/50">----</h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="panel-ajustes" class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/40 space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">⚙️ Ajustes de Partida</h3>
+                    
+                    <div>
+                        <label class="block text-[11px] text-slate-400 font-bold uppercase mb-1">Mazo / Categoría:</label>
+                        <select id="select-categoria" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none disabled:opacity-60"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 font-bold uppercase mb-1">Tiempo por turno (seg):</label>
+                        <input type="number" id="input-tiempo" value="60" min="15" max="180" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none disabled:opacity-60">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-bold uppercase mb-1">Rondas máx:</label>
+                            <input type="number" id="input-rondas" value="3" min="1" max="10" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none disabled:opacity-60">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 font-bold uppercase mb-1">Saltos gratis:</label>
+                            <input type="number" id="input-saltos" value="3" min="0" max="9" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none disabled:opacity-60">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Jugadores conectados:</h3>
+                    <ul id="lista-jugadores" class="space-y-2 max-h-56 overflow-y-auto"></ul>
+                </div>
+            </div>
+
+            <button id="btn-empezar-partida" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black p-4 rounded-xl transition shadow-lg tracking-wider uppercase text-sm hidden">
+                🚀 Empezar Partida
+            </button>
         </div>
 
-        <div class="buttons-container">
-            <button class="btn-taboo" id="btn-taboo" onclick="sendGameAction('taboo')">¡TABÚ!</button>
-            <button class="btn-skip" id="btn-skip" onclick="sendGameAction('skip')">PASO (<span id="skips-left">3</span>)</button>
-            <button class="btn-success" id="btn-success" onclick="sendGameAction('correct')">¡ACIERTO!</button>
+        <div id="pantalla-juego" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl hidden relative">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-4 mb-4">
+                <div>
+                    <p id="txt-rol-juego" class="text-xs uppercase font-bold tracking-wider text-indigo-400">Cargando...</p>
+                    <h3 id="txt-turno-de" class="text-lg font-bold text-slate-100">...</h3>
+                </div>
+                <div class="bg-slate-900 border-2 border-amber-500 rounded-full w-14 h-14 flex items-center justify-center font-mono text-xl font-bold text-amber-500 animate-pulse">
+                    <span id="txt-cronometro">--</span>
+                </div>
+            </div>
+
+            <div id="contenedor-tarjeta" class="space-y-4 my-6">
+                <div id="vista-orador" class="hidden text-center">
+                    <div class="bg-indigo-600 p-4 rounded-xl font-extrabold text-2xl uppercase tracking-wide">
+                        <span id="palabra-principal">Cargando...</span>
+                    </div>
+                    <p class="text-xs text-rose-400 font-bold uppercase tracking-wider mt-5 mb-2">🚫 Palabras Prohibidas:</p>
+                    <ul id="lista-prohibidas" class="bg-slate-900 rounded-xl divide-y divide-slate-800/80 overflow-hidden text-lg font-medium text-slate-300 shadow-inner"></ul>
+                </div>
+
+                <div id="vista-adivinador" class="hidden text-center py-8">
+                    <p class="text-5xl mb-4 animate-bounce">🧠</p>
+                    <h2 class="text-2xl font-bold text-emerald-400 mb-2">¡Te toca adivinar!</h2>
+                    <p class="text-slate-400 text-sm max-w-xs mx-auto">Escucha atentamente las pistas de tu compañero.</p>
+                </div>
+
+                <div id="vista-controlador" class="hidden text-center py-8">
+                    <p class="text-5xl mb-4">👀</p>
+                    <h2 class="text-2xl font-bold text-rose-400 mb-2">¡Eres el Vigilante!</h2>
+                </div>
+            </div>
+
+            <div id="acciones-juego" class="border-t border-slate-700 pt-4 mt-6">
+                <div id="bloque-botones-orador" class="hidden space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-saltar" class="bg-slate-700 hover:bg-slate-600 font-bold p-3 rounded-lg transition text-sm">Saltar</button>
+                        <button id="btn-acierto" class="bg-emerald-600 hover:bg-emerald-700 font-bold p-3 rounded-lg transition text-sm">¡Acertada! (+1)</button>
+                    </div>
+                    <button id="btn-tabu" class="w-full bg-rose-600 hover:bg-rose-700 font-bold p-3 rounded-lg transition text-sm uppercase tracking-wide">
+                        🚨 ¡Tabú! (-1 punto)
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <button class="btn-restart" id="btn-restart" onclick="rollTheDice()" style="display:none;">🎲 Siguiente Ronda</button>
-    </div>
-
-    <script>
-        // Canal público gratuito abierto al instante
-        const drone = new ScaleDrone('askYv6vYw7w6yO6S'); 
-        const roomName = 'observable-sala-tabu';
-        let room;
-
-        const deck = [
-            { word: "secer++", forbidden: ["Código", "Secreto", "Programar", "Plus"] },
-            { word: "Computadora", forbidden: ["Pantalla", "Teclado", "Ratón", "Internet"] },
-            { word: "Pizza", forbidden: ["Queso", "Italia", "Comida", "Masa"] },
-            { word: "Fútbol", forbidden: ["Balón", "Gol", "Estadio", "Messi"] },
-            { word: "Helado", forbidden: ["Frío", "Postre", "Cucurucho", "Chocolate"] }
-        ];
-
-        let playerRole = 'guesser'; 
-        let myUniqueId = Math.random().toString(36).substring(2, 9); 
-        let timerInterval;
-        let gameState = { score: 0, timeLeft: 60, skipsLeft: 3, currentCardIndex: 0, gameActive: false, giverId: "" };
-
-        drone.on('open', error => {
-            if (error) return console.error(error);
-            room = drone.subscribe(roomName);
-            room.on('data', (message, client) => {
-                handleIncomingAction(message);
-            });
-        });
-
-        function rollTheDice() {
-            gameState.currentCardIndex = Math.floor(Math.random() * deck.length);
-            gameState.score = 0;
-            gameState.timeLeft = 60;
-            gameState.skipsLeft = 3;
-            gameState.giverId = myUniqueId; 
-            gameState.gameActive = true;
-            broadcastState('start_game');
-        }
-
-        function sendGameAction(type) {
-            if (!gameState.gameActive || playerRole !== 'giver') return;
-            broadcastState(type);
-        }
-
-        function broadcastState(actionType) {
-            drone.publish({ room: roomName, message: { action: actionType, state: gameState } });
-        }
-
-        function handleIncomingAction(payload) {
-            const action = payload.action;
+        <div id="pantalla-resumen-turno" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl hidden">
+            <h2 class="text-2xl font-bold text-center text-indigo-400 mb-1">Fin del Turno</h2>
+            <p class="text-center text-slate-400 text-sm mb-5">Historial de palabras de <span id="txt-resumen-orador" class="text-slate-200 font-bold">...</span></p>
             
-            if (action === 'start_game') {
-                gameState = payload.state;
-                document.getElementById("welcome-screen").style.display = "none";
-                
-                if(myUniqueId === gameState.giverId) {
-                    playerRole = 'giver';
-                    document.getElementById('current-role-badge').innerText = "🗣️ ¡Te toca dar pistas!";
-                    document.getElementById('current-role-badge').style.background = "#2ec4b6";
-                } else {
-                    playerRole = 'guesser';
-                    document.getElementById('current-role-badge').innerText = "👁️ Adivinando / Rival";
-                    document.getElementById('current-role-badge').style.background = "#8e24aa";
-                }
-                startLocalTimer();
-                updateUI();
-                return;
-            }
+            <div class="space-y-4 max-h-80 overflow-y-auto pr-1">
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">✅ Acertadas:</h4>
+                    <ul id="lista-resumen-acertadas" class="bg-slate-900 p-3 rounded-xl text-sm space-y-1 text-slate-300 font-medium"></ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">➡️ Pasadas:</h4>
+                    <ul id="lista-resumen-saltadas" class="bg-slate-900 p-3 rounded-xl text-sm space-y-1 text-slate-400 font-medium"></ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-rose-400 mb-2">🚨 Tabúes cometidos:</h4>
+                    <ul id="lista-resumen-tabu" class="bg-slate-900 p-3 rounded-xl text-sm space-y-1 text-rose-300 font-medium"></ul>
+                </div>
+            </div>
+            <button id="btn-continuar-turno" class="w-full bg-indigo-600 hover:bg-indigo-700 font-bold p-3.5 rounded-xl transition mt-6 tracking-wide hidden">
+                Continuar Partida ➡️
+            </button>
+        </div>
 
-            if (!gameState.gameActive) return;
+        <div id="pantalla-resumen-ronda" class="w-full max-w-md bg-slate-800 p-6 rounded-2xl shadow-xl hidden">
+            <p class="text-center text-5xl mb-2">🏆</p>
+            <h2 class="text-3xl font-black text-center text-amber-400 mb-1">Clasificación</h2>
+            <p class="text-center text-slate-400 text-sm mb-6">Fin de la Ronda <span id="txt-numero-ronda-fin" class="font-bold text-amber-200">1</span></p>
+            
+            <div class="bg-slate-900 rounded-xl overflow-hidden border border-slate-700/50">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-950/80 text-slate-400 text-xs uppercase font-bold tracking-wider">
+                            <th class="p-3.5 pl-4 w-16">Pos</th>
+                            <th class="p-3.5">Jugador</th>
+                            <th class="p-3.5 pr-4 text-right">Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-posiciones" class="divide-y divide-slate-800 text-sm font-medium"></tbody>
+                </table>
+            </div>
 
-            if (action === 'correct') { gameState.score++; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
-            else if (action === 'taboo') { gameState.score--; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
-            else if (action === 'skip') { gameState.skipsLeft--; gameState.currentCardIndex = (gameState.currentCardIndex + 1) % deck.length; }
+            <button id="btn-siguiente-ronda" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black p-4 rounded-xl transition mt-6 shadow-lg hidden uppercase tracking-wider text-sm">
+                Siguiente Ronda 🚀
+            </button>
+        </div>
 
-            updateUI();
-        }
+    </main>
 
-        function startLocalTimer() {
-            clearInterval(timerInterval);
-            document.getElementById("btn-restart").style.display = "none";
-            timerInterval = setInterval(() => {
-                if (!gameState.gameActive) return;
-                gameState.timeLeft--;
-                document.getElementById("timer").innerText = gameState.timeLeft;
-                if (gameState.timeLeft <= 0) {
-                    gameState.gameActive = false;
-                    clearInterval(timerInterval);
-                    document.getElementById("secret-word").innerText = "¡FIN!";
-                    document.getElementById("btn-restart").style.display = "block";
-                }
-            }, 1000);
-        }
-
-        function updateUI() {
-            document.getElementById("score").innerText = gameState.score;
-            document.getElementById("timer").innerText = gameState.timeLeft;
-            document.getElementById("skips-left").innerText = gameState.skipsLeft;
-
-            if (playerRole === 'giver') {
-                document.getElementById('game-card').style.opacity = "1";
-                document.getElementById("btn-skip").disabled = gameState.skipsLeft <= 0;
-                document.getElementById("btn-taboo").disabled = false;
-                document.getElementById("btn-success").disabled = false;
-                
-                const currentCard = deck[gameState.currentCardIndex];
-                document.getElementById("secret-word").innerText = currentCard.word;
-                document.getElementById("forbidden-list").innerHTML = currentCard.forbidden.map(w => `<li class="forbidden-word">${w}</li>`).join('');
-            } else {
-                document.getElementById('game-card').style.opacity = "0.1";
-                document.getElementById("btn-skip").disabled = true;
-                document.getElementById("btn-taboo").disabled = true;
-                document.getElementById("btn-success").disabled = true;
-                document.getElementById("secret-word").innerText = "¡ADIVINANDO!";
-                document.getElementById("forbidden-list").innerHTML = "<li>Oculto para los rivales</li>";
-            }
-        }
-    </script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
 </body>
 </html>
