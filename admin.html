@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Panel de Control - Tabú Database</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col">
+
+    <header class="bg-slate-900 border-b border-slate-800 shadow-xl px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">⚡</span>
+            <div>
+                <h1 class="text-xl font-black tracking-wider text-indigo-400">TABÚ BACKOFFICE</h1>
+                <p class="text-xs text-slate-400">Gestor CRUD total de Base de Datos en tiempo real</p>
+            </div>
+        </div>
+        <nav class="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800" id="nav-tabs">
+            <button onclick="cambiarPestaña('salas')" id="tab-salas" class="px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white">
+                <i class="fa-solid fa-door-open"></i> Salas
+            </button>
+            <button onclick="cambiarPestaña('jugadores')" id="tab-jugadores" class="px-4 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-users"></i> Jugadores
+            </button>
+            <button onclick="cambiarPestaña('turnos')" id="tab-turnos" class="px-4 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-hourglass-half"></i> Turnos
+            </button>
+            <button onclick="cambiarPestaña('mazo_palabras')" id="tab-mazo_palabras" class="px-4 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-layer-group"></i> Mazo Palabras
+            </button>
+        </nav>
+    </header>
+
+    <main class="flex-grow p-6 max-w-7xl w-full mx-auto space-y-6">
+        
+        <section id="sec-salas" class="space-y-4 tab-content">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-850">
+                <div>
+                    <h2 class="text-lg font-extrabold text-indigo-400">🏠 Gestión de Salas</h2>
+                    <p class="text-xs text-slate-400">Crea salas fantasmas para pruebas o edita configuraciones activas.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="vaciarTablaActual()" class="bg-rose-950/60 hover:bg-rose-700 text-rose-400 hover:text-white border border-rose-900/50 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Vaciar Tabla
+                    </button>
+                    <button onclick="abrirModalFormulario('salas')" class="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Añadir Nueva Sala
+                    </button>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-inner">
+                <table class="w-full text-left text-xs font-medium">
+                    <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">ID</th><th class="p-4">Código</th><th class="p-4">Estado</th>
+                            <th class="p-4">Tiempo (s)</th><th class="p-4">Rondas Máx</th><th class="p-4">Ronda Act.</th>
+                            <th class="p-4">Saltos Gratis</th><th class="p-4">Categoría Filtro</th><th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-salas" class="divide-y divide-slate-800/60"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="sec-jugadores" class="space-y-4 tab-content hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-850">
+                <div>
+                    <h2 class="text-lg font-extrabold text-indigo-400">👥 Gestión de Jugadores</h2>
+                    <p class="text-xs text-slate-400">Modifica los puntos de cualquier jugador en tiempo real o asígnalos a otras salas.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="vaciarTablaActual()" class="bg-rose-950/60 hover:bg-rose-700 text-rose-400 hover:text-white border border-rose-900/50 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Vaciar Tabla
+                    </button>
+                    <button onclick="abrirModalFormulario('jugadores')" class="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Añadir Nuevo Jugador
+                    </button>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-inner">
+                <table class="w-full text-left text-xs font-medium">
+                    <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">ID</th><th class="p-4">Nombre</th><th class="p-4">Sala ID</th>
+                            <th class="p-4">Puntos</th><th class="p-4">Es Anfitrión</th><th class="p-4">Sesión ID</th><th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-jugadores" class="divide-y divide-slate-800/60"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="sec-turnos" class="space-y-4 tab-content hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-850">
+                <div>
+                    <h2 class="text-lg font-extrabold text-indigo-400">⏳ Historial de Turnos</h2>
+                    <p class="text-xs text-slate-400">Inspecciona y limpia listas de palabras acertadas, pasadas o tabúes.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="vaciarTablaActual()" class="bg-rose-950/60 hover:bg-rose-700 text-rose-400 hover:text-white border border-rose-900/50 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Vaciar Tabla
+                    </button>
+                    <button onclick="abrirModalFormulario('turnos')" class="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Forzar Nuevo Turno
+                    </button>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-inner">
+                <table class="w-full text-left text-xs font-medium">
+                    <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">ID</th><th class="p-4">Sala ID</th><th class="p-4">Orador</th>
+                            <th class="p-4">Adivinador</th><th class="p-4">Palabra ID</th><th class="p-4">Estado</th>
+                            <th class="p-4">Ronda No.</th><th class="p-4">Acertadas</th><th class="p-4">Saltadas</th><th class="p-4">Tabúes</th><th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-turnos" class="divide-y divide-slate-800/60"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="sec-mazo_palabras" class="space-y-4 tab-content hidden">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-900 p-5 rounded-2xl border border-slate-850 shadow-lg">
+                <div class="space-y-1">
+                    <h2 class="text-lg font-extrabold text-indigo-400">📦 Banco de Palabras (Mazo)</h2>
+                    <p class="text-xs text-slate-400">Amplía tu juego añadiendo palabras y sus respectivos conjuntos de palabras prohibidas.</p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-2 items-center flex-grow max-w-2xl justify-end">
+                    <div class="relative w-full sm:w-64">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                        <input type="text" id="buscar-palabra" oninput="filtrarMazoLocal()" placeholder="Buscar palabra..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-medium">
+                    </div>
+                    <select id="filtrar-categoria" onchange="filtrarMazoLocal()" class="w-full sm:w-48 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition font-medium">
+                        <option value="">✨ Todas las categorías</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="vaciarTablaActual()" class="bg-rose-950/60 hover:bg-rose-700 text-rose-400 hover:text-white border border-rose-900/50 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Vaciar Tabla
+                    </button>
+                    <button onclick="abrirModalFormulario('mazo_palabras')" class="bg-emerald-600 hover:bg-emerald-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Añadir Palabra Nueva
+                    </button>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-x-auto shadow-inner">
+                <table class="w-full text-left text-xs font-medium">
+                    <thead class="bg-slate-950 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="p-4 w-16">ID</th><th class="p-4">Palabra Principal</th>
+                            <th class="p-4 w-1/2">Palabras Prohibidas (Tabúes)</th><th class="p-4">Categoría / Pack</th><th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-mazo_palabras" class="divide-y divide-slate-800/60"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-formulario" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="cerrarModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 id="modal-titulo" class="text-base font-black text-indigo-400 uppercase tracking-wider mb-4">Formulario</h3>
+            
+            <form id="form-dinamico" onsubmit="procesarFormulario(event)" class="space-y-4 overflow-y-auto pr-1 flex-grow"></form>
+            
+            <div class="flex gap-2 justify-end border-t border-slate-800 pt-4 mt-4">
+                <button type="button" onclick="cerrarModal()" class="bg-slate-800 hover:bg-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition">Cancelar</button>
+                <button type="submit" form="form-dinamico" class="bg-indigo-600 hover:bg-indigo-700 text-xs font-bold px-5 py-2.5 rounded-xl transition">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // =========================================================================
+        // 1. CONFIGURACIÓN: Introduce tus credenciales reales aquí
+        // =========================================================================
+        const SUPABASE_URL = "https://noirhvzgawswgeegcypg.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5vaXJodnpnYXdzd2dlZWdjeXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MzMxNTksImV4cCI6MjA5NTIwOTE1OX0.X9Oo325y5J-GBympMUHajt_o-DUa3eP_yaTsunJudw0";
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let tablaActiva = 'salas';
+        let idEditando = null;
+        
+        // Almacén global temporal para filtrar el mazo localmente
+        let cacheMazoPalabras = []; 
+
+        window.addEventListener('DOMContentLoaded', () => {
+            cargarDatosTabla(tablaActiva);
+        });
+
+        // =========================================================================
+        // 2. CONTROLADOR DE PESTAÑAS (TABS)
+        // =========================================================================
+        function cambiarPestaña(nombreTabla) {
+            tablaActiva = nombreTabla;
+            
+            const botones = document.querySelectorAll('#nav-tabs button');
+            botones.forEach(btn => {
+                if (btn.id === `tab-${nombreTabla}`) {
+                    btn.className = "px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white";
+                } else {
+                    btn.className = "px-4 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-slate-200 flex items-center gap-2";
+                }
+            });
+
+            document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(`sec-${nombreTabla}`).classList.remove('hidden');
+
+            idEditando = null;
+            cargarDatosTabla(nombreTabla);
+        }
+
+        // =========================================================================
+        // 3. LECTURA DE DATOS (READ)
+        // =========================================================================
+        async function cargarDatosTabla(tabla) {
+            let respuesta;
+            
+            if (tabla === 'salas' || tabla === 'jugadores') {
+                respuesta = await db.from(tabla).select('*').order('creado_en', { ascending: false });
+            } else if (tabla === 'turnos') {
+                respuesta = await db.from(tabla).select('*').order('id', { ascending: false });
+            } else {
+                respuesta = await db.from(tabla).select('*').order('palabra_principal', { ascending: true });
+            }
+
+            const { data, error } = respuesta;
+            if (error) return console.error(`Error leyendo ${tabla}:`, error);
+
+            // Si estamos leyendo el mazo, lo respaldamos en la caché y actualizamos el selector de categorías
+            if (tabla === 'mazo_palabras') {
+                cacheMazoPalabras = data || [];
+                actualizarSelectorCategorias(cacheMazoPalabras);
+                renderizarFilasMazo(cacheMazoPalabras);
+                return;
+            }
+
+            const tbody = document.getElementById(`tabla-${tabla}`);
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="15" class="p-8 text-center italic text-slate-500">No hay registros cargados en la tabla "${tabla}".</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-850/40 transition text-slate-300";
+                
+                if (tabla === 'salas') {
+                    tr.innerHTML = `
+                        <td class="p-4 font-mono text-[11px] text-slate-500">${item.id}</td>
+                        <td class="p-4 font-black text-indigo-400 tracking-wider">${item.codigo}</td>
+                        <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${item.estado==='jugando'?'bg-emerald-500/10 text-emerald-400':'bg-amber-500/10 text-amber-400'}">${item.estado}</span></td>
+                        <td class="p-4 font-mono">${item.tiempo_ronda}s</td>
+                        <td class="p-4 font-mono">${item.max_rondas}</td>
+                        <td class="p-4 font-mono text-amber-400 font-bold">${item.ronda_actual || 1}</td>
+                        <td class="p-4 font-mono">${item.max_saltos}</td>
+                        <td class="p-4 text-slate-400">${item.categoria_id || '<span class="text-slate-600 italic">Todas</span>'}</td>
+                    `;
+                } 
+                else if (tabla === 'jugadores') {
+                    tr.innerHTML = `
+                        <td class="p-4 font-mono text-[11px] text-slate-500">${item.id}</td>
+                        <td class="p-4 font-bold text-slate-200">${item.nombre}</td>
+                        <td class="p-4 font-mono text-slate-400">${item.sala_id}</td>
+                        <td class="p-4 font-mono text-emerald-400 font-bold">${item.puntos} pts</td>
+                        <td class="p-4 font-mono">${item.es_anfitrion ? '✅ Sí' : '❌ No'}</td>
+                        <td class="p-4 font-mono text-slate-500 text-[10px]">${item.sesion_id}</td>
+                    `;
+                }
+                else if (tabla === 'turnos') {
+                    tr.innerHTML = `
+                        <td class="p-4 font-mono text-slate-500 text-[11px]">${item.id}</td>
+                        <td class="p-4 font-mono text-slate-400">${item.sala_id}</td>
+                        <td class="p-4 font-mono text-indigo-300">ID: ${item.jugador_orador_id}</td>
+                        <td class="p-4 font-mono text-violet-300">ID: ${item.jugador_adivinador_id}</td>
+                        <td class="p-4 font-mono text-slate-400">ID: ${item.palabra_actual_id}</td>
+                        <td class="p-4"><span class="text-[10px] font-bold uppercase">${item.estado}</span></td>
+                        <td class="p-4 font-mono">${item.numero_ronda}</td>
+                        <td class="p-4 text-[11px] text-emerald-400 max-w-[120px] truncate">${JSON.stringify(item.palabras_acertadas || [])}</td>
+                        <td class="p-4 text-[11px] text-slate-400 max-w-[120px] truncate">${JSON.stringify(item.palabras_saltadas || [])}</td>
+                        <td class="p-4 text-[11px] text-rose-400 max-w-[120px] truncate">${JSON.stringify(item.palabras_tabu || [])}</td>
+                    `;
+                }
+
+                // Inyección segura de botones
+                inyectarBotoneraAcciones(tr, item);
+                tbody.appendChild(tr);
+            });
+        }
+
+        // =========================================================================
+        // 🌟 LÓGICA EXCLUSIVA DE FILTRADO LOCAL PARA EL MAZO DE PALABRAS 🌟
+        // =========================================================================
+        function actualizarSelectorCategorias(items) {
+            const select = document.getElementById('filtrar-categoria');
+            const valorGuardado = select.value; // Guardar selección previa si existe
+            
+            // Extraer nombres únicos limpiando nulos/vacíos
+            const categoriasUnicas = [...new Set(items.map(i => i.categoria).filter(Boolean))].sort();
+            
+            select.innerHTML = '<option value="">✨ Todas las categorías</option>';
+            categoriasUnicas.forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat.toUpperCase()}</option>`;
+            });
+            
+            // Restaurar la selección si sigue estando disponible
+            if (categoriasUnicas.includes(valorGuardado)) {
+                select.value = valorGuardado;
+            }
+        }
+
+        function filtrarMazoLocal() {
+            const textoBusqueda = document.getElementById('buscar-palabra').value.toLowerCase().trim();
+            const categoriaSeleccionada = document.getElementById('filtrar-categoria').value;
+
+            // Filtramos en cadena sobre la caché local en memoria
+            const mazoFiltrado = cacheMazoPalabras.filter(item => {
+                const cumpleTexto = !textoBusqueda || item.palabra_principal.toLowerCase().includes(textoBusqueda);
+                const cumpleCategoria = !categoriaSeleccionada || item.categoria === categoriaSeleccionada;
+                return cumpleTexto && cumpleCategoria;
+            });
+
+            renderizarFilasMazo(mazoFiltrado);
+        }
+
+        function renderizarFilasMazo(items) {
+            const tbody = document.getElementById('tabla-mazo_palabras');
+            tbody.innerHTML = '';
+
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center italic text-slate-500">Ninguna palabra coincide con los criterios de búsqueda.</td></tr>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-850/40 transition text-slate-300";
+                
+                const prohibidasString = (item.palabras_prohibidas || []).map(p => `<span class="bg-slate-850 px-1.5 py-0.5 border border-slate-800 rounded text-slate-400 text-[11px]">${p}</span>`).join(' ');
+                
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-slate-500 text-[11px]">${item.id}</td>
+                    <td class="p-4 font-bold text-white text-sm uppercase tracking-wide">${item.palabra_principal}</td>
+                    <td class="p-4"><div class="flex flex-wrap gap-1">${prohibidasString || '<span class="text-rose-500/70 italic">Sin prohibidas</span>'}</div></td>
+                    <td class="p-4"><span class="bg-indigo-950/60 text-indigo-400 border border-indigo-900/50 px-2 py-0.5 rounded-full font-bold text-[11px]">${item.categoria || 'General'}</span></td>
+                `;
+
+                inyectarBotoneraAcciones(tr, item);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function inyectarBotoneraAcciones(filaTr, item) {
+            const tdAcciones = document.createElement('td');
+            tdAcciones.className = "p-4 text-center space-x-1 whitespace-nowrap";
+            tdAcciones.innerHTML = `
+                <button onclick='abrirEditar(${JSON.stringify(item)})' class="bg-slate-850 hover:bg-slate-700 text-slate-300 p-2 rounded-xl transition text-[11px]" title="Editar Registro">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="eliminarRegistro('${item.id}')" class="bg-rose-950/40 hover:bg-rose-600 text-rose-400 hover:text-white p-2 rounded-xl transition text-[11px]" title="Eliminar Registro">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            `;
+            filaTr.appendChild(tdAcciones);
+        }
+
+        // =========================================================================
+        // 5. ELIMINACIÓN DE UN REGISTRO (DELETE INDIVIDUAL)
+        // =========================================================================
+        async function eliminarRegistro(id) {
+            if (!confirm(`¿Estás seguro de que deseas eliminar el registro con ID: ${id} de la tabla "${tablaActiva}"?\nEsta acción es irreversible.`)) return;
+
+            const { error } = await db.from(tablaActiva).delete().eq('id', id);
+            if (error) {
+                alert(`Error al eliminar: ${error.message}\nVerifica si este registro depende de otra clave foránea.`);
+            } else {
+                cargarDatosTabla(tablaActiva);
+            }
+        }
+
+        // =========================================================================
+        // 6. VACIAR TABLA COMPLETA (FIX UNIVERSAL COMPATIBLE CON UUID E INTEGERS)
+        // =========================================================================
+        async function vaciarTablaActual() {
+            const confirmacion1 = confirm(`⚠️ ¡ATENCIÓN CRÍTICA! ⚠️\n¿Estás completamente seguro de que deseas VACIAR la tabla "${tablaActiva.toUpperCase()}"?\nEsto eliminará absolutamente TODOS sus registros.`);
+            if (!confirmacion1) return;
+
+            if (['salas', 'mazo_palabras'].includes(tablaActiva)) {
+                const confirmacion2 = confirm(`🚨 ALERTA DE INTEGRIDAD:\nVaciar las "${tablaActiva}" eliminará en cascada datos vinculados en Supabase o dejará el juego vacío.\n¿Estás seguro de proceder?`);
+                if (!confirmacion2) return;
+            }
+
+            const { error } = await db.from(tablaActiva).delete().not('id', 'is', null);
+
+            if (error) {
+                alert(`No se pudo vaciar la tabla: ${error.message}`);
+            } else {
+                alert(`¡La tabla "${tablaActiva}" ha sido vaciada por completo!`);
+                cargarDatosTabla(tablaActiva);
+            }
+        }
+
+        // =========================================================================
+        // 7. APERTURA Y CONSTRUCCIÓN DE FORMULARIOS (CREACIÓN / EDICIÓN)
+        // =========================================================================
+        function abrirModalFormulario(tabla) {
+            idEditando = null;
+            document.getElementById('modal-titulo').innerText = `🆕 Añadir a tabla: ${tabla}`;
+            construirInputsFormulario(tabla, null);
+            document.getElementById('modal-formulario').classList.remove('hidden');
+        }
+
+        function abrirEditar(item) {
+            idEditando = item.id;
+            document.getElementById('modal-titulo').innerText = `✏️ Editar en tabla: ${tablaActiva} (ID: ${item.id})`;
+            construirInputsFormulario(tablaActiva, item);
+            document.getElementById('modal-formulario').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-formulario').classList.add('hidden');
+            document.getElementById('form-dinamico').innerHTML = '';
+        }
+
+        function construirInputsFormulario(tabla, datos) {
+            const form = document.getElementById('form-dinamico');
+            form.innerHTML = '';
+
+            let campos = [];
+
+            if (tabla === 'salas') {
+                campos = [
+                    { name: 'codigo', label: 'Código (4 letras)', type: 'text', placeholder: 'ABCD', value: datos?.codigo || '', attrs: 'maxlength="4" style="text-transform: uppercase;" required' },
+                    { name: 'estado', label: 'Estado', type: 'select', options: ['esperando', 'jugando', 'resumen_ronda', 'finalizado'], value: datos?.estado || 'esperando' },
+                    { name: 'tiempo_ronda', label: 'Tiempo por Turno (segundos)', type: 'number', value: datos?.tiempo_ronda ?? 60 },
+                    { name: 'max_rondas', label: 'Rondas Máximas', type: 'number', value: datos?.max_rondas ?? 3 },
+                    { name: 'ronda_actual', label: 'Ronda Actual', type: 'number', value: datos?.ronda_actual ?? 1 },
+                    { name: 'max_saltos', label: 'Saltos Permitidos', type: 'number', value: datos?.max_saltos ?? 3 },
+                    { name: 'categoria_id', label: 'Categoría Texto (Filtro)', type: 'text', placeholder: 'Ej. Películas', value: datos?.categoria_id || '' }
+                ];
+            } 
+            else if (tabla === 'jugadores') {
+                campos = [
+                    { name: 'nombre', label: 'Nombre del Jugador', type: 'text', value: datos?.nombre || '', attrs: 'required' },
+                    { name: 'sala_id', label: 'ID/UUID de la Sala Asociada', type: 'text', value: datos?.sala_id || '', attrs: 'required' },
+                    { name: 'puntos', label: 'Puntuación Actual', type: 'number', value: datos?.puntos ?? 0 },
+                    { name: 'es_anfitrion', label: '¿Es el Creador/Host?', type: 'select', options: ['true', 'false'], value: datos?.es_anfitrion ? 'true' : 'false' },
+                    { name: 'sesion_id', label: 'Token de Sesión Local', type: 'text', value: datos?.sesion_id || '' }
+                ];
+            } 
+            else if (tabla === 'turnos') {
+                campos = [
+                    { name: 'sala_id', label: 'ID/UUID de Sala', type: 'text', value: datos?.sala_id || '', attrs: 'required' },
+                    { name: 'jugador_orador_id', label: 'ID/UUID Jugador Orador', type: 'text', value: datos?.jugador_orador_id || '', attrs: 'required' },
+                    { name: 'jugador_adivinador_id', label: 'ID/UUID Jugador Adivinador', type: 'text', value: datos?.jugador_adivinador_id || '' },
+                    { name: 'palabra_actual_id', label: 'ID Palabra Actual (Integer)', type: 'number', value: datos?.palabra_actual_id || '' },
+                    { name: 'estado', label: 'Estado del Turno', type: 'select', options: ['activo', 'resumen'], value: datos?.estado || 'activo' },
+                    { name: 'numero_ronda', label: 'Número de Ronda', type: 'number', value: datos?.numero_ronda ?? 1 },
+                    { name: 'palabras_acertadas', label: 'Acertadas (Formato JSON Array)', type: 'text', placeholder: '["Palabra1", "Palabra2"]', value: datos?.palabras_acertadas ? JSON.stringify(datos.palabras_acertadas) : '[]' },
+                    { name: 'palabras_saltadas', label: 'Saltadas (Formato JSON Array)', type: 'text', placeholder: '[]', value: datos?.palabras_saltadas ? JSON.stringify(datos.palabras_saltadas) : '[]' },
+                    { name: 'palabras_tabu', label: 'Tabúes (Formato JSON Array)', type: 'text', placeholder: '[]', value: datos?.palabras_tabu ? JSON.stringify(datos.palabras_tabu) : '[]' }
+                ];
+            } 
+            else if (tabla === 'mazo_palabras') {
+                campos = [
+                    { name: 'palabra_principal', label: 'Palabra Secreta Principal', type: 'text', placeholder: 'Ej. CRUASÁN', value: datos?.palabra_principal || '', attrs: 'required' },
+                    { name: 'palabras_prohibidas', label: 'Palabras Prohibidas (Separadas por comas)', type: 'text', placeholder: 'panadería, dulce, francés, mantequilla', value: datos?.palabras_prohibidas ? datos.palabras_prohibidas.join(', ') : '', attrs: 'required' },
+                    { name: 'categoria', label: 'Categoría / Temática', type: 'text', placeholder: 'Ej. Comida', value: datos?.categoria || '' }
+                ];
+            }
+
+            campos.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "space-y-1 text-left";
+                
+                let inputHTML = '';
+                if (c.type === 'select') {
+                    inputHTML = `<select name="${c.name}" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+                        ${c.options.map(opt => `<option value="${opt}" ${c.value==opt?'selected':''}>${opt.toUpperCase()}</option>`).join('')}
+                    </select>`;
+                } else {
+                    inputHTML = `<input type="${c.type}" name="${c.name}" value="${c.value}" placeholder="${c.placeholder || ''}" ${c.attrs || ''} class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-medium">`;
+                }
+
+                div.innerHTML = `<label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide">${c.label}</label>${inputHTML}`;
+                form.appendChild(div);
+            });
+        }
+        // =========================================================================
+        // 8. PROCESAMIENTO E INSERCIÓN/ACTUALIZACIÓN CORREGIDO
+        // =========================================================================
+        async function procesarFormulario(e) {
+            e.preventDefault();
+            const formData = new FormData(document.getElementById('form-dinamico'));
+            const payload = {};
+
+            for (let [key, value] of formData.entries()) {
+                // Validación: No enviar cadenas vacías a campos que deben ser IDs o números
+                if (value === '') {
+                    payload[key] = null;
+                    continue;
+                }
+
+                if (key === 'es_anfitrion') {
+                    payload[key] = (value === 'true');
+                } else if (['palabras_prohibidas', 'palabras_acertadas', 'palabras_saltadas', 'palabras_tabu'].includes(key)) {
+                    // Manejo de Arrays
+                    try {
+                        payload[key] = (typeof value === 'string' && value.includes('[')) 
+                            ? JSON.parse(value) 
+                            : value.split(',').map(p => p.trim()).filter(Boolean);
+                    } catch(err) { payload[key] = []; }
+                } else if (['tiempo_ronda', 'max_rondas', 'ronda_actual', 'max_saltos', 'palabra_actual_id', 'puntos', 'numero_ronda'].includes(key)) {
+                    payload[key] = parseInt(value);
+                } else {
+                    payload[key] = value;
+                }
+            }
+
+            // DEBUG: Ver qué se envía antes de la petición
+            console.log("Enviando payload a Supabase:", payload);
+
+            let query;
+            if (idEditando === null) {
+                query = db.from(tablaActiva).insert([payload]);
+            } else {
+                // Si el ID es un UUID, Supabase lo gestiona. Si es numérico, también.
+                query = db.from(tablaActiva).update(payload).eq('id', idEditando);
+            }
+
+            const { error } = await query;
+
+            if (error) {
+                console.error("Error completo de Supabase:", error);
+                alert(`Error al guardar en ${tablaActiva}:\n${error.message}\nDetalles: ${error.details || 'Revisa la consola'}`);
+            } else {
+                cerrarModal();
+                cargarDatosTabla(tablaActiva);
+            }
+        }
+    </script>
+</body>
+</html>
