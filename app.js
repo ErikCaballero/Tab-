@@ -41,8 +41,14 @@ const inputCodigo = document.getElementById('input-codigo');
 const txtCodigo = document.getElementById('txt-codigo-sala');
 const listaJugadoresUI = document.getElementById('lista-jugadores');
 
-// Inputs de Ajustes (Panel de Control)
-const selectCategoria = document.getElementById('select-categoria');
+// Elementos del Explorador de Salas Abiertas
+const contenedorSalasAbiertas = document.getElementById('contenedor-salas-abiertas');
+const btnActualizarSalas = document.getElementById('btn-actualizar-salas');
+
+// Inputs de Ajustes y Nuevo Desplegable Múltiple
+const btnCategoriaMenu = document.getElementById('btn-categoria-menu');
+const txtCategoriasSeleccionadas = document.getElementById('txt-categorias-seleccionadas');
+const dropdownCategorias = document.getElementById('dropdown-categorias');
 const inputTiempo = document.getElementById('input-tiempo');
 const inputRondas = document.getElementById('input-rondas');
 const inputSaltos = document.getElementById('input-saltos');
@@ -73,7 +79,7 @@ const tablaPosiciones = document.getElementById('tabla-posiciones');
 const btnSiguienteRonda = document.getElementById('btn-siguiente-ronda');
 
 // =========================================================================
-// 3. LÓGICA DE PANEL DE CONTROL / CONFIGURACIÓN
+// 3. LÓGICA DE PANEL DE CONTROL / CONFIGURACIÓN (MULTISELECCIÓN)
 // =========================================================================
 
 function alternarPantalla(pantallaVisible) {
@@ -81,58 +87,167 @@ function alternarPantalla(pantallaVisible) {
     pantallaVisible.classList.remove('hidden');
 }
 
-// Carga las categorías dinámicamente desde tu tabla 'mazo_palabras'
+// Controladores visuales del Dropdown de Categorías
+btnCategoriaMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdownCategorias.classList.toggle('hidden');
+});
+
+document.addEventListener('click', () => {
+    dropdownCategorias.classList.add('hidden');
+});
+
+dropdownCategorias.addEventListener('click', (e) => {
+    e.stopPropagation(); 
+});
+
+// Carga las categorías dinámicamente transformándolas en un menú de Checkboxes
 async function cargarCategoriasOpciones() {
     const { data } = await db.from('mazo_palabras').select('categoria');
-    selectCategoria.innerHTML = '<option value="todas">✨ Todas las categorías</option>';
+    dropdownCategorias.innerHTML = '';
+    
     if (data) {
         const categoriasUnicas = [...new Set(data.map(item => item.categoria).filter(Boolean))];
         categoriasUnicas.forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat;
-            opt.innerText = cat;
-            selectCategoria.appendChild(opt);
+            const label = document.createElement('label');
+            label.className = "flex items-center gap-2 p-2 hover:bg-slate-700/60 rounded-lg cursor-pointer text-xs font-semibold w-full text-left transition select-none text-slate-200";
+            
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.value = cat;
+            chk.className = 'chk-categoria rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-800 focus:ring-1 trend-transform';
+            
+            chk.addEventListener('change', registrarCambioAjustes);
+
+            const span = document.createElement('span');
+            span.innerText = cat;
+
+            label.appendChild(chk);
+            label.appendChild(span);
+            dropdownCategorias.appendChild(label);
         });
     }
 }
 
-// Guarda inmediatamente en Supabase cualquier cambio que haga el Anfitrión
+// Guarda en Supabase concatenando las categorías seleccionadas por comas
 async function registrarCambioAjustes() {
     if (!miUsuario || !miUsuario.es_anfitrion || !salaActual) return;
+    
+    const checkboxes = dropdownCategorias.querySelectorAll('.chk-categoria');
+    const seleccionadas = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+    
+    const valorCategoria = (seleccionadas.length === 0 || seleccionadas.length === checkboxes.length) 
+        ? null 
+        : seleccionadas.join(',');
     
     const { error } = await db.from('salas').update({
         tiempo_ronda: parseInt(inputTiempo.value) || 60,
         max_rondas: parseInt(inputRondas.value) || 3,
         max_saltos: parseInt(inputSaltos.value) || 3,
-        categoria_id: selectCategoria.value === 'todas' ? null : selectCategoria.value 
+        categoria_id: valorCategoria 
     }).eq('id', salaActual.id);
 
     if (error) console.error("Error guardando ajustes:", error);
 }
 
-// Vincula los eventos de cambio a los inputs de la interfaz
-[inputTiempo, inputRondas, inputSaltos, selectCategoria].forEach(el => {
-    el.addEventListener('input', registrarCambioAjustes); // 'input' guarda mientras arrastras o cambias
+[inputTiempo, inputRondas, inputSaltos].forEach(el => {
+    el.addEventListener('input', registrarCambioAjustes);
 });
 
-// Sincroniza visualmente los inputs para los invitados y bloquea su edición
 function aplicarAjustesEnUI(sala) {
-    // Si NO soy el creador de la sala, me deshabilito los controles
     const esAnfitrion = miUsuario && miUsuario.es_anfitrion;
+    
     inputTiempo.disabled = !esAnfitrion;
     inputRondas.disabled = !esAnfitrion;
     inputSaltos.disabled = !esAnfitrion;
-    selectCategoria.disabled = !esAnfitrion;
 
-    // Actualizo el valor visual de los inputs con lo que tiene la Base de Datos
     inputTiempo.value = sala.tiempo_ronda;
     inputRondas.value = sala.max_rondas;
     inputSaltos.value = sala.max_saltos;
-    selectCategoria.value = sala.categoria_id === null ? 'todas' : sala.categoria_id;
+
+    const checkboxes = dropdownCategorias.querySelectorAll('.chk-categoria');
+    if (checkboxes.length > 0) {
+        if (!sala.categoria_id) {
+            checkboxes.forEach(c => {
+                c.checked = true;
+                c.disabled = !esAnfitrion;
+            });
+            txtCategoriasSeleccionadas.innerText = "✨ Todas las categorías";
+        } else {
+            const seleccionadas = sala.categoria_id.split(',');
+            checkboxes.forEach(c => {
+                c.checked = seleccionadas.includes(c.value);
+                c.disabled = !esAnfitrion; 
+            });
+
+            if (seleccionadas.length === 1) {
+                txtCategoriasSeleccionadas.innerText = `📂 ${seleccionadas[0]}`;
+            } else {
+                txtCategoriasSeleccionadas.innerText = `📂 ${seleccionadas.length} cat. activas`;
+            }
+        }
+    }
 }
 
 // =========================================================================
-// 4. CREACIÓN Y UNIÓN A SALA
+// 4. LÓGICA DE EXPLORACIÓN DE SALAS EXISTENTES
+// =========================================================================
+async function cargarSalasDisponibles() {
+    contenedorSalasAbiertas.innerHTML = '<p class="text-slate-500 text-center py-2">Buscando salas...</p>';
+    
+    const { data: salas, error } = await db.from('salas').select('*').order('id', { ascending: false });
+    
+    if (error || !salas || salas.length === 0) {
+        contenedorSalasAbiertas.innerHTML = '<p class="text-slate-500 text-center py-2">No hay salas creadas en el servidor.</p>';
+        return;
+    }
+    
+    contenedorSalasAbiertas.innerHTML = '';
+    salas.forEach(sala => {
+        const item = document.createElement('div');
+        item.className = "flex justify-between items-center bg-slate-900/60 p-2.5 rounded-xl border border-slate-700/50 hover:border-slate-600 transition animate-fade-in";
+        
+        let badgeStyle = "bg-slate-700 text-slate-300";
+        let badgeTexto = sala.estado;
+        
+        if (sala.estado === 'esperando') {
+            badgeStyle = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+            badgeTexto = "⏳ Esperando";
+        } else if (sala.estado === 'jugando') {
+            badgeStyle = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+            badgeTexto = "🎮 En Juego";
+        } else if (sala.estado === 'resumen_ronda') {
+            badgeStyle = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+            badgeTexto = "🏆 Fin Ronda";
+        }
+        
+        item.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span class="font-mono font-bold tracking-widest text-indigo-400 bg-slate-950 px-2 py-1 rounded border border-slate-800 text-sm">${sala.codigo}</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md ${badgeStyle}">${badgeTexto}</span>
+            </div>
+            <button class="btn-acceso-directo bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold px-3 py-1 rounded-lg transition tracking-wide text-[11px]" data-codigo="${sala.codigo}">
+                Entrar
+            </button>
+        `;
+        
+        // Manejador del botón dinámico de acceso
+        item.querySelector('.btn-acceso-directo').addEventListener('click', (e) => {
+            const nombre = inputNombre.value.trim();
+            if (!nombre) return alert("Por favor, introduce tu nombre primero (arriba) antes de unirte.");
+            
+            inputCodigo.value = e.target.getAttribute('data-codigo');
+            btnUnirse.click();
+        });
+        
+        contenedorSalasAbiertas.appendChild(item);
+    });
+}
+
+btnActualizarSalas.addEventListener('click', cargarSalasDisponibles);
+
+// =========================================================================
+// 5. CREACIÓN Y UNIÓN A SALA
 // =========================================================================
 
 btnCrear.addEventListener('click', async () => {
@@ -142,7 +257,6 @@ btnCrear.addEventListener('click', async () => {
     await cargarCategoriasOpciones();
     const codigoSala = Math.random().toString(36).substring(2, 6).toUpperCase();
     
-    // Valores iniciales por defecto al crear la sala
     const { data: sala, error: errS } = await db.from('salas')
         .insert([{ codigo: codigoSala, estado: 'esperando', tiempo_ronda: 60, max_rondas: 3, max_saltos: 3, ronda_actual: 1, categoria_id: null }])
         .select().single();
@@ -177,7 +291,7 @@ btnUnirse.addEventListener('click', async () => {
 });
 
 // =========================================================================
-// 5. LOBBY Y REALTIME (SINCRONIZACIÓN DE PANTALLAS)
+// 6. LOBBY Y REALTIME (SINCRONIZACIÓN DE PANTALLAS)
 // =========================================================================
 
 function mostrarPantallaEspera() {
@@ -208,13 +322,10 @@ async function actualizarListaJugadoresDeBaseDatos() {
 }
 
 function activarMonitoreoRealtime() {
-    // Escucha cambios en la sala (Ajustes modificados por el creador o cambios de estado)
     db.channel(`sala-${salaActual.id}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'salas', filter: `id=eq.${salaActual.id}` }, 
             (payload) => {
                 salaActual = payload.new;
-                
-                // Aquí ocurre la magia: actualiza los inputs de todos en tiempo real
                 aplicarAjustesEnUI(salaActual);
                 
                 if (salaActual.estado === 'jugando') alternarPantalla(pantallas.juego);
@@ -222,13 +333,11 @@ function activarMonitoreoRealtime() {
             }
         ).subscribe();
 
-    // Escucha cuando entran nuevos jugadores
     db.channel(`jugadores-${salaActual.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores', filter: `sala_id=eq.${salaActual.id}` }, 
             () => actualizarListaJugadoresDeBaseDatos()
         ).subscribe();
 
-    // Escucha el flujo de los turnos
     db.channel(`turnos-${salaActual.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos', filter: `sala_id=eq.${salaActual.id}` }, 
             async (payload) => {
@@ -240,7 +349,6 @@ function activarMonitoreoRealtime() {
                     mostrarResumenTurno(turno);
                 } else if (turnoActualId !== turno.id) {
                     turnoActualId = turno.id;
-                    // Aplicar la cantidad de saltos configurada en la sala
                     saltosRestantes = salaActual.max_saltos;
                     palabrasUsadasEnTurno = []; 
                     sincronizarCronometro(turno.termina_at, turno.id);
@@ -251,10 +359,39 @@ function activarMonitoreoRealtime() {
                 }
             }
         ).subscribe();
+
+    // NUEVO: Sincronización instantánea si entramos a una partida ya iniciada
+    if (salaActual.estado === 'jugando' || salaActual.estado === 'resumen_ronda') {
+        fetchTurnoActualInicial();
+    }
+}
+
+// Sincroniza el rol del jugador que llega tarde a una partida ya empezada
+async function fetchTurnoActualInicial() {
+    const { data: turnos } = await db.from('turnos')
+        .select('*')
+        .eq('sala_id', salaActual.id)
+        .order('id', { ascending: false })
+        .limit(1);
+        
+    if (turnos && turnos.length > 0) {
+        const turno = turnos[0];
+        turnoActualDatos = turno;
+        turnoActualId = turno.id;
+        saltosRestantes = salaActual.max_saltos;
+        
+        if (turno.estado === 'resumen') {
+            mostrarResumenTurno(turno);
+        } else {
+            sincronizarCronometro(turno.termina_at, turno.id);
+            alternarPantalla(pantallas.juego);
+            configurarPantallaSegunRol(turno);
+        }
+    }
 }
 
 // =========================================================================
-// 6. MOTOR DE JUEGO
+// 7. MOTOR DE JUEGO
 // =========================================================================
 
 async function actualizarPuntos(jugadorId, variacion) {
@@ -280,14 +417,16 @@ async function iniciarNuevoTurno() {
     const adivinador = jugadoresEnSala.find(j => j.id !== orador.id) || orador;
 
     let q = db.from('mazo_palabras').select('id');
-    // Aplica el filtro de categoría configurado en la sala
-    if (salaActual.categoria_id) q = q.eq('categoria', salaActual.categoria_id);
+    
+    if (salaActual.categoria_id) {
+        const cats = salaActual.categoria_id.split(',');
+        q = q.in('categoria', cats);
+    }
     
     const { data: pals } = await q;
-    if (!pals || pals.length === 0) return alert("No hay palabras en la categoría seleccionada.");
+    if (!pals || pals.length === 0) return alert("No hay palabras en las categorías seleccionadas.");
     const palabra = pals[Math.floor(Math.random() * pals.length)];
 
-    // Aplica el tiempo por ronda configurado en la sala
     const terminaAt = new Date(Date.now() + (salaActual.tiempo_ronda * 1000)).toISOString();
 
     await db.from('turnos').insert([{
@@ -340,7 +479,12 @@ function sincronizarCronometro(finStr, turnoId) {
 
 async function cambiarPalabra() {
     let q = db.from('mazo_palabras').select('id, palabra_principal');
-    if (salaActual.categoria_id) q = q.eq('categoria', salaActual.categoria_id);
+    
+    if (salaActual.categoria_id) {
+        const cats = salaActual.categoria_id.split(',');
+        q = q.in('categoria', cats);
+    }
+    
     const { data: pals } = await q;
     let disp = pals.filter(p => !palabrasUsadasEnTurno.includes(p.palabra_principal));
     if (disp.length === 0) disp = pals;
@@ -384,17 +528,12 @@ function mostrarResumenTurno(turno) {
     if (intervaloCronometro) clearInterval(intervaloCronometro);
     alternarPantalla(pantallas.resumenTurno);
     
-    // Mostramos el nombre del orador
     txtResumenOrador.innerText = jugadoresEnSala.find(j => j.id === turno.jugador_orador_id)?.nombre || "";
     
-    // Pintamos las 3 listas
     listaResumenAcertadas.innerHTML = (turno.palabras_acertadas || []).map(p => `<li>✅ ${p}</li>`).join('') || '<li>-</li>';
     listaResumenSaltadas.innerHTML = (turno.palabras_saltadas || []).map(p => `<li>➡️ ${p}</li>`).join('') || '<li>-</li>';
-    
-    // ¡AQUÍ ESTABA EL ERROR! Ya inyecta la variable ${p} correctamente
     listaResumenTabu.innerHTML = (turno.palabras_tabu || []).map(p => `<li>🚨 ${p}</li>`).join('') || '<li>-</li>';
     
-    // Mostramos el botón de continuar solo al anfitrión
     btnContinuarTurno.classList.toggle('hidden', !miUsuario.es_anfitrion);
 }
 
@@ -415,7 +554,6 @@ async function mostrarResumenRonda() {
     tablaPosiciones.innerHTML = jugs.map((j, i) => `<tr><td class="p-2">${i+1}</td><td class="p-2">${j.nombre}</td><td class="p-2 text-right">${j.puntos}</td></tr>`).join('');
     if (miUsuario.es_anfitrion) {
         btnSiguienteRonda.classList.remove('hidden');
-        // Evalúa el límite máximo de rondas configurado dinámicamente en la sala
         btnSiguienteRonda.innerText = salaActual.ronda_actual >= salaActual.max_rondas ? "Finalizar Partida 🏆" : "Siguiente Ronda 🚀";
     }
 }
@@ -429,3 +567,6 @@ btnSiguienteRonda.addEventListener('click', async () => {
         await iniciarNuevoTurno();
     }
 });
+
+// INITIALIZATION ENTRYPOINT
+cargarSalasDisponibles();
