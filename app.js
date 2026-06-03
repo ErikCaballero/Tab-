@@ -16,6 +16,10 @@ let palabraActualTexto = "";
 let palabrasUsadasEnTurno = [];
 let procesandoAccion = false;
 
+// Variables de Corrección
+let palabraEnCorreccion = null;
+let tipoListaCorreccion = null; // 'acertadas' o 'saltadas'
+
 // ID de sesión único para identificar al navegador
 if (!localStorage.getItem('tabu_sesion_id')) {
     localStorage.setItem('tabu_sesion_id', Math.random().toString(36).substring(2, 15));
@@ -70,6 +74,7 @@ const btnTabu = document.getElementById('btn-tabu');
 
 // UI Resúmenes
 const txtResumenOrador = document.getElementById('txt-resumen-orador');
+const txtInfoHostCorr = document.getElementById('txt-info-host-corr');
 const listaResumenAcertadas = document.getElementById('lista-resumen-acertadas');
 const listaResumenSaltadas = document.getElementById('lista-resumen-saltadas');
 const listaResumenTabu = document.getElementById('lista-resumen-tabu');
@@ -77,6 +82,9 @@ const btnContinuarTurno = document.getElementById('btn-continuar-turno');
 const txtNumeroRondaFin = document.getElementById('txt-numero-ronda-fin');
 const tablaPosiciones = document.getElementById('tabla-posiciones');
 const btnSiguienteRonda = document.getElementById('btn-siguiente-ronda');
+
+// Modal Corrección
+const btnAplicarTabu = document.getElementById('btn-aplicar-tabu');
 
 // =========================================================================
 // 3. LÓGICA DE PANEL DE CONTROL / CONFIGURACIÓN (MULTISELECCIÓN)
@@ -87,7 +95,6 @@ function alternarPantalla(pantallaVisible) {
     pantallaVisible.classList.remove('hidden');
 }
 
-// Controladores visuales del Dropdown de Categorías
 btnCategoriaMenu.addEventListener('click', (e) => {
     e.stopPropagation();
     dropdownCategorias.classList.toggle('hidden');
@@ -101,7 +108,6 @@ dropdownCategorias.addEventListener('click', (e) => {
     e.stopPropagation(); 
 });
 
-// Carga las categorías dinámicamente transformándolas en un menú de Checkboxes
 async function cargarCategoriasOpciones() {
     const { data } = await db.from('mazo_palabras').select('categoria');
     dropdownCategorias.innerHTML = '';
@@ -129,7 +135,6 @@ async function cargarCategoriasOpciones() {
     }
 }
 
-// Guarda en Supabase concatenando las categorías seleccionadas por comas
 async function registrarCambioAjustes() {
     if (!miUsuario || !miUsuario.es_anfitrion || !salaActual) return;
     
@@ -231,7 +236,6 @@ async function cargarSalasDisponibles() {
             </button>
         `;
         
-        // Manejador del botón dinámico de acceso
         item.querySelector('.btn-acceso-directo').addEventListener('click', (e) => {
             const nombre = inputNombre.value.trim();
             if (!nombre) return alert("Por favor, introduce tu nombre primero (arriba) antes de unirte.");
@@ -247,7 +251,7 @@ async function cargarSalasDisponibles() {
 btnActualizarSalas.addEventListener('click', cargarSalasDisponibles);
 
 // =========================================================================
-// 5. CREACIÓN Y UNIÓN A SALA
+// 5. CREACIÓN, UNIÓN Y ABANDONO DE SALA
 // =========================================================================
 
 btnCrear.addEventListener('click', async () => {
@@ -290,8 +294,35 @@ btnUnirse.addEventListener('click', async () => {
     mostrarPantallaEspera();
 });
 
+// NUEVO: Función Global de Abandono (Destruye la sala si te vas y queda vacía)
+window.abandonarSala = async function() {
+    if (!salaActual || !miUsuario) return;
+    
+    if (!confirm("¿Estás seguro de que quieres salir de la partida?")) return;
+
+    // 1. Borrar al propio jugador de la tabla
+    await db.from('jugadores').delete().eq('id', miUsuario.id);
+
+    // 2. Comprobar cuántos quedan
+    const { count, error } = await db.from('jugadores').select('*', { count: 'exact', head: true }).eq('sala_id', salaActual.id);
+    
+    if (count === 0) {
+        // 3a. La sala está vacía -> Eliminar la sala por completo
+        await db.from('salas').delete().eq('id', salaActual.id);
+    } else if (miUsuario.es_anfitrion) {
+        // 3b. La sala NO está vacía pero el que se va es el Host -> Asignar el puesto al jugador más veterano
+        const { data: restantes } = await db.from('jugadores').select('*').eq('sala_id', salaActual.id).order('creado_en', { ascending: true }).limit(1);
+        if (restantes && restantes.length > 0) {
+            await db.from('jugadores').update({ es_anfitrion: true }).eq('id', restantes[0].id);
+        }
+    }
+
+    // Recargar página para limpiar toda la RAM y volver al inicio
+    window.location.reload();
+};
+
 // =========================================================================
-// 6. LOBBY Y REALTIME (SINCRONIZACIÓN DE PANTALLAS)
+// 6. LOBBY Y REALTIME (SINCRONIZACIÓN Y EXPULSIÓN DE JUGADORES)
 // =========================================================================
 
 function mostrarPantallaEspera() {
@@ -309,14 +340,53 @@ function mostrarPantallaEspera() {
     activarMonitoreoRealtime();
 }
 
+window.expulsarJugador = async function(idJugadorAExpulsar) {
+    if (!miUsuario.es_anfitrion) return;
+    if (confirm("¿Estás seguro de que deseas expulsar a este jugador de la sala?")) {
+        const { error } = await db.from('jugadores').delete().eq('id', idJugadorAExpulsar);
+        if (error) {
+            console.error(error);
+            alert("Error al expulsar al jugador.");
+        } else {
+            actualizarListaJugadoresDeBaseDatos();
+        }
+    }
+};
+
 async function actualizarListaJugadoresDeBaseDatos() {
     const { data: jugadores } = await db.from('jugadores')
         .select('*').eq('sala_id', salaActual.id).order('creado_en', { ascending: true });
+    
     jugadoresEnSala = jugadores || [];
+
+    // Verificación de si te han expulsado u otra persona se fue
+    if (miUsuario && !jugadoresEnSala.find(j => j.id === miUsuario.id)) {
+        alert("Ya no formas parte de la sala.");
+        window.location.reload();
+        return;
+    }
+
+    // Sincronizar mis privilegios por si me heredaron el Host al irse el antiguo creador
+    const misDatosNuevos = jugadoresEnSala.find(j => j.id === miUsuario.id);
+    if (misDatosNuevos) miUsuario.es_anfitrion = misDatosNuevos.es_anfitrion;
+
+    // Reactivar el botón de Empezar Partida para el nuevo host si le heredaron el poder
+    if (miUsuario.es_anfitrion && salaActual.estado === 'esperando') {
+        btnEmpezar.classList.remove('hidden');
+        aplicarAjustesEnUI(salaActual); // Desbloquea inputs si acaba de recibir host
+    }
+
     listaJugadoresUI.innerHTML = jugadoresEnSala.map(j => `
         <li class="bg-slate-700/80 p-3 rounded-xl flex justify-between items-center text-sm font-semibold">
-            <span>${j.nombre} ${j.es_anfitrion ? '👑' : ''}</span>
-            <span class="text-indigo-300">${j.puntos || 0} pts</span>
+            <span class="flex items-center gap-2">
+                ${j.nombre} ${j.es_anfitrion ? '👑' : ''}
+            </span>
+            <div class="flex items-center gap-3">
+                <span class="text-indigo-300">${j.puntos || 0} pts</span>
+                ${(miUsuario.es_anfitrion && j.id !== miUsuario.id) ? 
+                    `<button onclick="expulsarJugador('${j.id}')" class="bg-rose-950/60 text-rose-400 hover:text-rose-200 hover:bg-rose-900 transition px-2 py-1 rounded-lg text-xs" title="Expulsar jugador">❌</button>` 
+                : ''}
+            </div>
         </li>
     `).join('');
 }
@@ -334,9 +404,10 @@ function activarMonitoreoRealtime() {
         ).subscribe();
 
     db.channel(`jugadores-${salaActual.id}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'jugadores', filter: `sala_id=eq.${salaActual.id}` }, 
-            () => actualizarListaJugadoresDeBaseDatos()
-        ).subscribe();
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'jugadores', filter: `sala_id=eq.${salaActual.id}` }, () => actualizarListaJugadoresDeBaseDatos())
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'jugadores', filter: `sala_id=eq.${salaActual.id}` }, () => actualizarListaJugadoresDeBaseDatos())
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'jugadores' }, () => actualizarListaJugadoresDeBaseDatos()) 
+        .subscribe();
 
     db.channel(`turnos-${salaActual.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'turnos', filter: `sala_id=eq.${salaActual.id}` }, 
@@ -360,13 +431,11 @@ function activarMonitoreoRealtime() {
             }
         ).subscribe();
 
-    // NUEVO: Sincronización instantánea si entramos a una partida ya iniciada
     if (salaActual.estado === 'jugando' || salaActual.estado === 'resumen_ronda') {
         fetchTurnoActualInicial();
     }
 }
 
-// Sincroniza el rol del jugador que llega tarde a una partida ya empezada
 async function fetchTurnoActualInicial() {
     const { data: turnos } = await db.from('turnos')
         .select('*')
@@ -523,16 +592,84 @@ btnTabu.addEventListener('click', async () => {
     procesandoAccion = false;
 });
 
-// PANTALLAS DE RESUMEN
+// =========================================================================
+// 8. PANTALLAS DE RESUMEN Y CORRECCIÓN HOST
+// =========================================================================
+
+// Lógica del modal de corrección
+window.abrirModalCorreccion = async function(palabra, listaOrigen) {
+    if (!miUsuario.es_anfitrion) return; 
+    
+    palabraEnCorreccion = palabra;
+    tipoListaCorreccion = listaOrigen;
+
+    document.getElementById('modal-corr-palabra').innerText = palabra;
+    document.getElementById('modal-corr-prohibidas').innerHTML = '<li class="text-slate-500 italic">Buscando tarjeta...</li>';
+    document.getElementById('modal-correccion').classList.remove('hidden');
+
+    const { data } = await db.from('mazo_palabras').select('palabras_prohibidas').eq('palabra_principal', palabra).single();
+    if (data && data.palabras_prohibidas) {
+        document.getElementById('modal-corr-prohibidas').innerHTML = data.palabras_prohibidas.map(p => `<li>${p}</li>`).join('');
+    } else {
+        document.getElementById('modal-corr-prohibidas').innerHTML = '<li class="text-slate-500 italic">No se encontraron.</li>';
+    }
+};
+
+window.cerrarModalCorreccion = function() {
+    document.getElementById('modal-correccion').classList.add('hidden');
+    palabraEnCorreccion = null;
+    tipoListaCorreccion = null;
+};
+
+btnAplicarTabu.addEventListener('click', async () => {
+    if (!palabraEnCorreccion || !tipoListaCorreccion || !turnoActualDatos) return;
+    
+    const t = turnoActualDatos;
+    let listaAcertadas = [...(t.palabras_acertadas || [])];
+    let listaSaltadas = [...(t.palabras_saltadas || [])];
+    let listaTabu = [...(t.palabras_tabu || [])];
+
+    if (tipoListaCorreccion === 'acertadas') {
+        listaAcertadas = listaAcertadas.filter(p => p !== palabraEnCorreccion);
+        await actualizarPuntos(t.jugador_orador_id, -2);
+    } else if (tipoListaCorreccion === 'saltadas') {
+        listaSaltadas = listaSaltadas.filter(p => p !== palabraEnCorreccion);
+        await actualizarPuntos(t.jugador_orador_id, -1);
+    }
+
+    listaTabu.push(palabraEnCorreccion);
+
+    await db.from('turnos').update({
+        palabras_acertadas: listaAcertadas,
+        palabras_saltadas: listaSaltadas,
+        palabras_tabu: listaTabu
+    }).eq('id', t.id);
+
+    cerrarModalCorreccion();
+});
+
+// Renderizado de Resumen
 function mostrarResumenTurno(turno) {
     if (intervaloCronometro) clearInterval(intervaloCronometro);
     alternarPantalla(pantallas.resumenTurno);
     
     txtResumenOrador.innerText = jugadoresEnSala.find(j => j.id === turno.jugador_orador_id)?.nombre || "";
     
-    listaResumenAcertadas.innerHTML = (turno.palabras_acertadas || []).map(p => `<li>✅ ${p}</li>`).join('') || '<li>-</li>';
-    listaResumenSaltadas.innerHTML = (turno.palabras_saltadas || []).map(p => `<li>➡️ ${p}</li>`).join('') || '<li>-</li>';
-    listaResumenTabu.innerHTML = (turno.palabras_tabu || []).map(p => `<li>🚨 ${p}</li>`).join('') || '<li>-</li>';
+    txtInfoHostCorr.classList.toggle('hidden', !miUsuario.es_anfitrion);
+    const claseClick = miUsuario.es_anfitrion ? "bg-slate-900 cursor-pointer hover:bg-slate-700 border border-transparent hover:border-indigo-500 transition shadow-sm" : "bg-slate-900";
+    const tituloClick = miUsuario.es_anfitrion ? " title='Clic para ver tarjeta y corregir'" : "";
+    
+    listaResumenAcertadas.innerHTML = (turno.palabras_acertadas || []).map(p => 
+        `<li class="p-3 rounded-xl text-sm text-slate-300 font-medium flex items-center ${claseClick}" ${tituloClick} onclick="abrirModalCorreccion('${p}', 'acertadas')">✅ <span class="ml-2">${p}</span></li>`
+    ).join('') || '<li class="text-slate-500 italic p-2">Ninguna</li>';
+
+    listaResumenSaltadas.innerHTML = (turno.palabras_saltadas || []).map(p => 
+        `<li class="p-3 rounded-xl text-sm text-slate-400 font-medium flex items-center ${claseClick}" ${tituloClick} onclick="abrirModalCorreccion('${p}', 'saltadas')">➡️ <span class="ml-2">${p}</span></li>`
+    ).join('') || '<li class="text-slate-500 italic p-2">Ninguna</li>';
+
+    listaResumenTabu.innerHTML = (turno.palabras_tabu || []).map(p => 
+        `<li class="bg-slate-900/60 p-3 rounded-xl text-sm text-rose-300 font-medium flex items-center">🚨 <span class="ml-2">${p}</span></li>`
+    ).join('') || '<li class="text-slate-500 italic p-2">Ninguno</li>';
     
     btnContinuarTurno.classList.toggle('hidden', !miUsuario.es_anfitrion);
 }
@@ -551,7 +688,7 @@ async function mostrarResumenRonda() {
     alternarPantalla(pantallas.resumenRonda);
     txtNumeroRondaFin.innerText = salaActual.ronda_actual;
     const { data: jugs } = await db.from('jugadores').select('*').eq('sala_id', salaActual.id).order('puntos', { ascending: false });
-    tablaPosiciones.innerHTML = jugs.map((j, i) => `<tr><td class="p-2">${i+1}</td><td class="p-2">${j.nombre}</td><td class="p-2 text-right">${j.puntos}</td></tr>`).join('');
+    tablaPosiciones.innerHTML = jugs.map((j, i) => `<tr><td class="p-2">${i+1}</td><td class="p-2">${j.nombre}</td><td class="p-2 text-right font-bold text-indigo-300">${j.puntos}</td></tr>`).join('');
     if (miUsuario.es_anfitrion) {
         btnSiguienteRonda.classList.remove('hidden');
         btnSiguienteRonda.innerText = salaActual.ronda_actual >= salaActual.max_rondas ? "Finalizar Partida 🏆" : "Siguiente Ronda 🚀";
